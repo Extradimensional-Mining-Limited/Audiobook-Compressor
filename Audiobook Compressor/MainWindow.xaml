@@ -1,0 +1,268 @@
+﻿<Window x:Class="Audiobook_Compressor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Audiobook_Compressor"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        mc:Ignorable="d"
+        Title="Audico" Width="600" MinHeight="250" MaxHeight="800" MinWidth="500"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:ProgressWidthConverter x:Key="ProgressWidthConverter"/>
+        <SolidColorBrush x:Key="SubtleTextColor" Color="Gray"/>
+        <SolidColorBrush x:Key="ProgressBarFillColor" Color="#FFE0E0E0"/>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="20,5"/>
+        </Style>
+        <Style TargetType="Button" x:Key="ActionButtonStyle">
+            <Setter Property="Padding" Value="30,10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="5,0,0,0"/>
+        </Style>
+        <Style x:Key="SettingsComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="20,5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#FF707070"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Name="ToggleButton"
+                                        BorderBrush="#FF707070"
+                                        Background="#DDDDDD"
+                                        BorderThickness="1"
+                                        Focusable="false"
+                                        IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="20"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.ColumnSpan="2"
+                                                    Background="#DDDDDD"
+                                                    BorderBrush="#FF707070"
+                                                    BorderThickness="1"/>
+                                            <!-- Down arrow -->
+                                            <Path Grid.Column="1"
+                                                  Fill="Black"
+                                                  Data="M 0 0 L 4 4 L 8 0 Z"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <!-- Content area -->
+                            <ContentPresenter Name="ContentSite"
+                                            Margin="8,0,25,0"
+                                            HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"
+                                            Content="{TemplateBinding SelectionBoxItem}"
+                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}">
+                                <ContentPresenter.Style>
+                                    <Style TargetType="ContentPresenter">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditable, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ContentPresenter.Style>
+                            </ContentPresenter>
+                            <TextBox x:Name="PART_EditableTextBox"
+                                    Margin="5,0,25,0"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Center"
+                                    Background="Transparent"
+                                    Focusable="True"
+                                    IsReadOnly="{Binding IsReadOnly, RelativeSource={RelativeSource TemplatedParent}}">
+                                <TextBox.Style>
+                                    <Style TargetType="TextBox">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsEditable, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="False">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBox.Style>
+                            </TextBox>
+                            <!-- Popup for dropdown -->
+                            <Popup Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Grid Name="DropDown"
+                                      SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border x:Name="DropDownBorder"
+                                            Background="White"
+                                            BorderThickness="1"
+                                            BorderBrush="#DDDDDD"/>
+                                    <ScrollViewer Margin="4,6,4,6"
+                                                SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True"/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <DockPanel LastChildFill="True">
+        <Grid Margin="15" DockPanel.Dock="Top">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0">
+                <Label Content="Source Library:" FontWeight="SemiBold"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="SourcePathTextBox" Grid.Column="0" Margin="0,0,5,0" Padding="5" VerticalContentAlignment="Center"/>
+                    <Button x:Name="SourceBrowseButton" Grid.Column="1" Content="Browse..."/>
+                </Grid>
+
+                <Label Content="Output Folder:" Margin="0,10,0,0" FontWeight="SemiBold"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="OutputPathTextBox" Grid.Column="0" Margin="0,0,5,0" Padding="5" VerticalContentAlignment="Center"/>
+                    <Button x:Name="OutputBrowseButton" Grid.Column="1" Content="Browse..."/>
+                </Grid>
+            </StackPanel>
+
+            <Expander x:Name="SettingsExpander" Grid.Row="1" Margin="0,20,0,5" IsExpanded="False">
+                <Expander.Header>
+                    <TextBlock x:Name="SettingsSummaryText" Text="Mono | 48k | 22050Hz | 64k Threshold | ABR | 1-Pass" Foreground="{StaticResource SubtleTextColor}"/>
+                </Expander.Header>
+                <Border BorderBrush="#FFD3D3D3" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,5,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Compression Settings:" FontWeight="SemiBold" Margin="0,5,0,5"/>
+                        <WrapPanel>
+                            <ComboBox x:Name="ChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                                <ComboBoxItem Content="Mono" IsSelected="True"/>
+                                <ComboBoxItem Content="Stereo"/>
+                            </ComboBox>
+                            <ComboBox x:Name="BitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True">
+                                <ComboBoxItem Content="32k"/>
+                                <ComboBoxItem Content="48k" IsSelected="True"/>
+                                <ComboBoxItem Content="64k"/>
+                            </ComboBox>
+                            <ComboBox x:Name="SampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                                <ComboBoxItem Content="22050Hz" IsSelected="True"/>
+                                <ComboBoxItem Content="44100Hz"/>
+                            </ComboBox>
+                            <ComboBox x:Name="ThresholdComboBox" MinWidth="80" Margin="3" ToolTip="Copy mono files instead of re-encoding if their bitrate is below this value." Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True">
+                                <ComboBoxItem Content="64k" IsSelected="True"/>
+                                <ComboBoxItem Content="96k"/>
+                            </ComboBox>
+                            <ComboBox x:Name="BitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                                <ComboBoxItem Content="ABR" IsSelected="True"/>
+                                <ComboBoxItem Content="CBR"/>
+                            </ComboBox>
+                            <ComboBox x:Name="PassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                                <ComboBoxItem Content="1-Pass" IsSelected="True"/>
+                                <ComboBoxItem Content="2-Pass"/>
+                            </ComboBox>
+                        </WrapPanel>
+                        <TextBlock Text="File Types:" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                        <WrapPanel>
+                            <CheckBox Content=".m4b" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".mp3" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".aac" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".m4a" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".flac" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".ogg" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".wma" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".wav" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".webma" Margin="3" IsChecked="True"/>
+                            <CheckBox Content=".opus" Margin="3" IsChecked="True"/>
+                        </WrapPanel>
+                        <TextBlock Text="Output Folder Defaults:" FontWeight="SemiBold" Margin="0,10,0,5"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button x:Name="MakeDefaultButton" Content="Set" Margin="3"/>
+                            <Button x:Name="ResetDefaultButton" Content="Reset" Margin="3"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Expander>
+
+            <Expander x:Name="LogExpander" Grid.Row="2" Margin="0,5,0,5" IsExpanded="False">
+                <Expander.Header>
+                    <TextBlock x:Name="MessageBarText" Text="Ready to start." Foreground="{StaticResource SubtleTextColor}" TextTrimming="CharacterEllipsis"/>
+                </Expander.Header>
+                <TextBox x:Name="LogTextBox" MinHeight="100" MaxHeight="400" Margin="0,5,0,0" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" FontFamily="Consolas"/>
+            </Expander>
+
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+                <Button x:Name="StartButton" Content="Start" Style="{StaticResource ActionButtonStyle}" Click="StartButton_Click"/>
+                <Button x:Name="CancelButton" Content="Cancel" Style="{StaticResource ActionButtonStyle}" IsEnabled="False"/>
+            </StackPanel>
+
+            <StatusBar Grid.Row="4" Margin="0,10,0,0" Height="22">
+                <StatusBar.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <Grid HorizontalAlignment="Stretch"/>
+                    </ItemsPanelTemplate>
+                </StatusBar.ItemsPanel>
+                <StatusBarItem HorizontalAlignment="Stretch" 
+                               HorizontalContentAlignment="Stretch" 
+                               VerticalContentAlignment="Stretch"
+                               Padding="0">
+                    <Grid x:Name="StatusBarGrid" 
+                          HorizontalAlignment="Stretch" 
+                          VerticalAlignment="Stretch"
+                          Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=StatusBarItem}}"
+                          Margin="0">
+                        <!-- Progress fill background -->
+                        <Rectangle x:Name="StatusProgressFill"
+                                  Fill="#FFB0B0B0"
+                                  HorizontalAlignment="Left"
+                                  VerticalAlignment="Stretch"
+                                  RadiusX="0" RadiusY="0"
+                                  IsHitTestVisible="False"
+                                  Margin="0"
+                                  Visibility="{Binding IsProgressVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Rectangle.Width>
+                                <MultiBinding Converter="{StaticResource ProgressWidthConverter}">
+                                    <Binding ElementName="StatusBarGrid" Path="ActualWidth"/>
+                                    <Binding Path="StatusProgress" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                </MultiBinding>
+                            </Rectangle.Width>
+                        </Rectangle>
+                        <!-- Status text -->
+                        <TextBlock x:Name="StatusTextBlock"
+                                  Text="{Binding StatusText, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  VerticalAlignment="Center"
+                                  HorizontalAlignment="Left"
+                                  Margin="5,0,0,0"/>
+                    </Grid>
+                </StatusBarItem>
+            </StatusBar>
+        </Grid>
+    </DockPanel>
+</Window>
