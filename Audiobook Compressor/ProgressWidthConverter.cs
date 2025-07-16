@@ -1,3 +1,12 @@
+/*
+    Last Updated: 2024-01-08 20:45 CEST
+    Version: 1.0.0
+    State: Stable
+    
+    Synopsis:
+    Value converter for progress bar width calculation.
+    Converts progress value (0-1) and total width into actual pixel width for status bar progress.
+*/
 using System;
 using System.Globalization;
 using System.Windows.Data;

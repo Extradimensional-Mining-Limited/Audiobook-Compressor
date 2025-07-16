@@ -1,4 +1,16 @@
-﻿using System.ComponentModel;
+﻿/*
+    Last Updated: 2024-01-08 20:45 CEST
+    Version: 1.0.0
+    State: Stable
+    
+    Synopsis:
+    Code-behind for the main window. Implements:
+    - Status and progress bar functionality
+    - Window size management for expanders
+    - ComboBox focus handling
+    - Basic process simulation
+*/
+using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
