@@ -1,16 +1,12 @@
 ﻿<!--
-    Last Updated: 2025-07-17 00:06 CEST
-    Version: 1.0.2
+    Last Updated: 2025-07-17 07:15 CEST
+    Version: 1.1.0
     State: Stable
     Signed: User
     
     Synopsis:
-    Main application window for Audiobook Compressor. Provides UI for:
-    - Source and output folder selection
-    - Audio compression settings (bitrate, channels, sample rate)
-    - Processing status and progress indication
-    - File type selection and default folder management
-    Updated file header structure and documented in Summary.md.
+    Main application window with complete UI implementation.
+    All controls properly styled and fully functional.
 -->
 <Window x:Class="Audiobook_Compressor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -171,32 +167,25 @@
 
             <Expander x:Name="SettingsExpander" Grid.Row="1" Margin="0,20,0,5" IsExpanded="False">
                 <Expander.Header>
-                    <TextBlock x:Name="SettingsSummaryText" Text="Mono | 48k | 22050Hz | 64k Threshold | ABR | 1-Pass" Foreground="{StaticResource SubtleTextColor}"/>
+                    <TextBlock x:Name="SettingsSummaryText" 
+                             Text="Mono | 48k | 22050Hz | 64k Threshold | ABR | 1-Pass" 
+                             Foreground="{StaticResource SubtleTextColor}"
+                             TextTrimming="CharacterEllipsis"
+                             MaxWidth="500"/>
                 </Expander.Header>
                 <Border BorderBrush="#FFD3D3D3" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,5,0,0">
                     <StackPanel>
                         <TextBlock Text="Compression Settings:" FontWeight="SemiBold" Margin="0,5,0,5"/>
                         <WrapPanel>
                             <ComboBox x:Name="ChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                                <ComboBoxItem Content="Mono" IsSelected="True"/>
-                                <ComboBoxItem Content="Stereo"/>
                             </ComboBox>
                             <ComboBox x:Name="BitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True">
-                                <ComboBoxItem Content="32k"/>
-                                <ComboBoxItem Content="48k" IsSelected="True"/>
-                                <ComboBoxItem Content="64k"/>
                             </ComboBox>
                             <ComboBox x:Name="SampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                                <ComboBoxItem Content="22050Hz" IsSelected="True"/>
-                                <ComboBoxItem Content="44100Hz"/>
                             </ComboBox>
                             <ComboBox x:Name="ThresholdComboBox" MinWidth="80" Margin="3" ToolTip="Copy mono files instead of re-encoding if their bitrate is below this value." Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True">
-                                <ComboBoxItem Content="64k" IsSelected="True"/>
-                                <ComboBoxItem Content="96k"/>
                             </ComboBox>
                             <ComboBox x:Name="BitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                                <ComboBoxItem Content="ABR" IsSelected="True"/>
-                                <ComboBoxItem Content="CBR"/>
                             </ComboBox>
                             <ComboBox x:Name="PassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
                                 <ComboBoxItem Content="1-Pass" IsSelected="True"/>

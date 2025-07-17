@@ -1,13 +1,13 @@
 ﻿/*
-    Last Updated: 2025-07-17 00:06 CEST
-    Version: 1.0.2
+    Last Updated: 2025-07-17 03:10 CEST
+    Version: 1.0.3
     State: Stable
     Signed: User
     
     Synopsis:
     Application entry point code-behind.
-    Currently implements basic application lifecycle management.
-    Updated file header structure and documented in Summary.md
+    Fixed v1.0.2 broken dependency validation that prevented app from starting.
+    Now properly displays missing tools with correct path information.
 */
 
 using System.Configuration;
@@ -20,7 +20,7 @@ namespace Audiobook_Compressor
     /// <summary>
     /// Interaction logic for App.xaml
     /// </summary>
-    public partial class App : Application
+    public partial class App : System.Windows.Application
     {
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -30,8 +30,8 @@ namespace Audiobook_Compressor
             if (!Constants.VerifyToolsExist())
             {
                 var missingTools = Constants.GetMissingTools().ToList();
-                MessageBox.Show(
-                    $"Required tools are missing:\n\n{string.Join("\n", missingTools)}\n\nThe application will now close.",
+                System.Windows.MessageBox.Show(
+                    $"Required tools are missing:\n\nLooking in: {Constants.AppDirectory}\n\nMissing:\n{string.Join("\n", missingTools)}\n\nThe application will now close.",
                     "Missing Required Tools",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
