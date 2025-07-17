@@ -1,11 +1,13 @@
 ﻿<!--
-    Last Updated: 2024-01-08 20:45 CEST
-    Version: 1.0.0
+    Last Updated: 2025-07-17 00:06 CEST
+    Version: 1.0.2
     State: Stable
+    Signed: User
     
     Synopsis:
     Application entry point for Audiobook Compressor.
     Defines global application resources and startup configuration.
+    Updated file header structure and documented in Summary.md.
 -->
 <Application x:Class="Audiobook_Compressor.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

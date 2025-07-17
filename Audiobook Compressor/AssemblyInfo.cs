@@ -1,12 +1,15 @@
 /*
-    Last Updated: 2024-01-08 20:45 CEST
-    Version: 1.0.0
+    Last Updated: 2025-07-17 00:06 CEST
+    Version: 1.0.2
     State: Stable
+    Signed: User
     
     Synopsis:
     Assembly metadata and configuration.
     Defines WPF-specific assembly attributes for proper XAML compilation.
+    Updated file header structure and documented in Summary.md.
 */
+
 using System.Windows;
 
 [assembly: ThemeInfo(
