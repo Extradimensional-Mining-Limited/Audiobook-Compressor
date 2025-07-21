@@ -1,3 +1,14 @@
+/*
+    Filename: AudioFileInfo.cs
+    Last Updated: 2025-07-17 07:15 CEST
+    Version: 1.1.0
+    State: Stable
+    Signed: User
+    
+    Synopsis:
+    Audio file model with complete metadata support.
+*/
+
 using System.IO;
 
 namespace Audiobook_Compressor.Models
@@ -36,13 +47,3 @@ namespace Audiobook_Compressor.Models
         }
     }
 }
-
-/*
-    Last Updated: 2025-07-17 07:15 CEST
-    Version: 1.1.0
-    State: Stable
-    Signed: User
-    
-    Synopsis:
-    Audio file model with complete metadata support.
-*/

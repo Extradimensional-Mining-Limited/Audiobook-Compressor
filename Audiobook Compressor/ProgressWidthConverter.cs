@@ -1,4 +1,5 @@
 /*
+    Filename: ProgressWidthConverter.cs
     Last Updated: 2025-07-17 03:10 CEST
     Version: 1.0.5
     State: Experimental

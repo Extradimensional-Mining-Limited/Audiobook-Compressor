@@ -1,25 +1,57 @@
-[2025-07-17 07:15 CEST]
-[1.1.0]
-[Stable]
-[Synopsis: First stable release with complete UI functionality]
-[Signed: User]
+Filename: Changelog.md
+Last Updated: 2025-07-21 05:28 CEST
+Version: 1.1.9
+State: Experimental
+Signed: GitHub Copilot
+
+Synopsis:
+SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. UI and logic are consistent. Removed border from editable ComboBox values in Compression Settings for a cleaner look. Renamed Output Folder Defaults 'Reset' button to 'Restore'. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
 
 # Changelog
 
 All notable changes to this project will be documented in this file.
-
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
-**How to Update This File**
-1.  Keep these instructions at the top of the file.
-2.  Add all new changes under the appropriate sub-heading in the `[Unreleased]` section. All release entries should be added below this section.
-3.  When creating a new release, the heading should follow the format: `## [Version] - YYYY-MM-DD HH:mm CEST - [State] - [Signed: Author]`
-4.  For timestamps, use the local date and time. The PowerShell command `Get-Date -Format "yyyy-MM-dd HH:mm"` can be used to generate the base timestamp.
----
+**AI Directives for Updating This Changelog**
+**Rule 1: Locating the Edit Area**
+* All new, unreleased changes **MUST** be added under the `### Added`, `### Changed`, or `### Fixed` sub-headings inside the `## [Unreleased]` section.
+
+**Rule 2: The Most Important Rule - DO NOT CREATE NEW HEADERS**
+* You **MUST NOT** create a new versioned header (e.g., `## [1.1.5]...`) for experimental, unreleased changes. The *only* time a new versioned header is created is for a formal, stable release, and this will be explicitly requested by the user.
+
+**Example Workflow for a typical change:**
+1. **User Request:** "Log a fix for the output path logic."
+2. **Your Action:**
+   * Locate the `## [Unreleased]` section.
+   * Locate the `### Fixed` sub-section.
+   * Add a new line: `- Fixed the output path logic.`
+   * Update the main file header at the very top of *this file* with the new version, timestamp, etc.
+   * **DO NOT** create a `## [1.1.5]` header.
+
+**Rule 3: Formal Releases**
+* A formal release is created by changing the `## [Unreleased]` heading to a version number (e.g., `## [1.2.0] - ...`) and adding a new, empty `## [Unreleased]` section above it. This action will **only** be performed upon explicit user instruction.
 
 ## [Unreleased]
+
+### Added
+- SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. UI and logic are consistent.
+- Wired up Output Folder Defaults Set/Restore buttons. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
+
+### Changed
+* Renamed Output Folder Defaults 'Reset' button to 'Restore'.
+* Removed border from editable ComboBox values in Compression Settings for a cleaner look.
+* Updated StartButton_Click to include null checks for `_cancellationSource`.
+* Changed the default output directory to be a sibling of the source directory.
+
+### Fixed
+* Output path logic in MainWindow and AudioProcessor now ensures files are placed in the correct output directory, not in subfolders named after the file.
+* Documentation conventions strictly followed for all changes.
+* Output extension logic in AudioProcessor now matches PowerShell reference: all re-encoded files are output as .m4b, regardless of input extension.
+* Copied mono files now preserve their original extension and use sanitized filenames.
+* Output filenames are sanitized to avoid invalid characters.
+* Fixed a bug where the application would crash if the source folder was empty.
+* Fixed UI freeze when processing very large audiobook libraries.
 
 ## [1.1.0] - 2025-07-17 07:15 CEST - [Stable] - [Signed: User]
 
@@ -172,3 +204,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Corrected various XAML layout issues, including button stretching and `StatusBar` sizing.
+- Updated StartButton_Click to include null checks for `_cancellationSource`.

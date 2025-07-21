@@ -1,9 +1,12 @@
-# [2025-07-13 01:48:00 CEST] - AudiobookCompressor-v6.2 (Complete and Verified)
-<#
-.SYNOPSIS
-    A complete and verified version that fixes the file filter bug and restores the full
-    processing logic that was missing from the previous version.
-#>
+# Filename: AudiobookCompressor-v6.2.ps1
+# Last Updated: 2025-07-13 01:48:00 CEST
+# Version: 6.2
+# State: Complete and Verified
+# Signed: User
+#
+# Synopsis:
+# A complete and verified version that fixes the file filter bug and restores the full
+# processing logic that was missing from the previous version.
 
 try {
     $LogDirectory = Join-Path -Path $PSScriptRoot -ChildPath "logging"

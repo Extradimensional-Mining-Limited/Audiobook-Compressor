@@ -1,4 +1,5 @@
 ﻿/*
+    Filename: App.xaml.cs
     Last Updated: 2025-07-17 03:10 CEST
     Version: 1.0.3
     State: Stable

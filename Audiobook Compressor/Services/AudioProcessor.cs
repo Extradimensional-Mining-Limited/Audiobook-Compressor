@@ -1,20 +1,23 @@
 /*
-    Last Updated: 2025-07-17 07:15 CEST
-    Version: 1.1.0
-    State: Stable
-    Signed: User
+    Filename: AudioProcessor.cs
+    Last Updated: 2025-07-21 15:10 CEST
+    Version: 1.1.4
+    State: Experimental
+    Signed: GitHub Copilot
     
     Synopsis:
-    Complete audio processing service with async operation support.
+    Enhanced audio processing service with complete logic ported from PowerShell script. Output path logic fixed to prevent creation of extra subfolders named after files.
 */
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Audiobook_Compressor.Models;
+using System.Text.RegularExpressions;
 
 namespace Audiobook_Compressor.Services
 {
@@ -91,106 +94,154 @@ namespace Audiobook_Compressor.Services
         /// </summary>
         public async IAsyncEnumerable<AudioFileInfo> ScanDirectoryAsync(string sourcePath)
         {
-            foreach (var extension in Settings.SupportedExtensions)
+            var files = Settings.SupportedExtensions
+                .SelectMany(extension => Directory.EnumerateFiles(sourcePath, $"*{extension}", SearchOption.AllDirectories))
+                .Where(file => !file.Contains("Compressed_Audiobooks", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(file => file)
+                .ToList();
+
+            foreach (var file in files)
             {
-                foreach (var file in Directory.EnumerateFiles(sourcePath, $"*{extension}", SearchOption.AllDirectories))
+                if (_cancellationToken.IsCancellationRequested)
+                    yield break;
+
+                var audioFile = new AudioFileInfo
                 {
-                    if (_cancellationToken.IsCancellationRequested)
-                        yield break;
+                    SourcePath = file,
+                    RelativePath = Path.GetRelativePath(sourcePath, file),
+                    Codec = "unknown" // Default value until probed
+                };
 
-                    if (file.Contains("Compressed_Audiobooks", StringComparison.OrdinalIgnoreCase))
-                        continue;
-
-                    var audioFile = new AudioFileInfo
-                    {
-                        SourcePath = file,
-                        RelativePath = Path.GetRelativePath(sourcePath, file),
-                        Codec = "unknown" // Default value until probed
-                    };
-
-                    if (await ProbeAudioFileAsync(audioFile))
-                        yield return audioFile;
-                }
+                if (await ProbeAudioFileAsync(audioFile))
+                    yield return audioFile;
             }
+        }
+
+        /// <summary>
+        /// Sanitizes a filename by replacing invalid characters
+        /// </summary>
+        private static string SanitizeFilename(string fileName)
+        {
+            var invalidChars = new string(Path.GetInvalidFileNameChars()) + "?";
+            var regex = new Regex($"[{Regex.Escape(invalidChars)}]");
+            var sanitized = regex.Replace(fileName, "-");
+            sanitized = sanitized.Trim().TrimEnd('.').Replace("--", "-");
+            return sanitized;
         }
 
         /// <summary>
         /// Processes an audio file according to current settings
         /// </summary>
-        public async Task ProcessAudioFileAsync(AudioFileInfo audioFile, string outputPath)
+        public async Task ProcessAudioFileAsync(AudioFileInfo audioFile, string outputBasePath)
         {
             if (_cancellationToken.IsCancellationRequested)
                 return;
 
             try
             {
-                // Create output directory if it doesn't exist
-                var outputDir = Path.GetDirectoryName(outputPath);
-                if (!string.IsNullOrEmpty(outputDir))
-                {
-                    Directory.CreateDirectory(outputDir);
-                }
+                var sourceExt = Path.GetExtension(audioFile.SourcePath);
+                var baseName = Path.GetFileNameWithoutExtension(audioFile.SourcePath);
+                var sanitizedBaseName = SanitizeFilename(baseName);
+                // Only use the directory part of RelativePath (exclude filename)
+                var relativeDir = Path.GetDirectoryName(audioFile.RelativePath);
+                var outputDir = string.IsNullOrEmpty(relativeDir) ? outputBasePath : Path.Combine(outputBasePath, relativeDir);
+                Directory.CreateDirectory(outputDir);
 
-                // Check if file is already optimized (mono and below threshold)
-                var isOptimized = Settings.CurrentChannel == "Mono" && 
-                                audioFile.Bitrate.HasValue && 
-                                audioFile.Bitrate.Value <= Settings.MonoCopyThreshold;
-
-                if (isOptimized)
+                var ffprobeArgs = $"-v error -select_streams a:0 -show_entries stream=codec_name,bit_rate,channels -of json \"{audioFile.SourcePath}\"";
+                var probeStartInfo = new ProcessStartInfo
                 {
-                    // File is already optimized, just copy it
-                    File.Copy(audioFile.SourcePath, outputPath, true);
-                    OnFileProcessed(audioFile, true);
-                    return;
-                }
-
-                var args = new List<string>
-                {
-                    "-i", $"\"{audioFile.SourcePath}\"",
-                    "-vn",                                    // No video
-                    "-c:a", "aac",                           // AAC codec
-                    "-b:a", Settings.FormatBitrate(Settings.TargetBitrate),
-                    "-ar", Settings.TargetSampleRate.ToString(),
-                    "-af", "pan=mono|c0=0.5*c0+0.5*c1",      // Downmix to mono
-                    "-map_metadata", "0",                     // Copy metadata
-                    "-map_chapters", "0",                     // Copy chapters
-                    "-movflags", "+faststart",               // Enable fast start
-                    "-y",                                    // Overwrite output
-                    "-v", "info",                            // Verbose output
-                    $"\"{outputPath}\""
-                };
-
-                var startInfo = new ProcessStartInfo
-                {
-                    FileName = _ffmpegPath,
-                    Arguments = string.Join(" ", args),
+                    FileName = _ffprobePath,
+                    Arguments = ffprobeArgs,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(startInfo);
-                if (process == null)
+                using var probeProcess = Process.Start(probeStartInfo);
+                if (probeProcess == null)
                 {
+                    Debug.WriteLine("Failed to start FFprobe process");
                     OnFileProcessed(audioFile, false);
                     return;
                 }
-                
-                // Monitor progress
-                await foreach (var line in ReadLinesAsync(process.StandardError))
+
+                var probeOutput = await probeProcess.StandardOutput.ReadToEndAsync();
+                await probeProcess.WaitForExitAsync(_cancellationToken);
+
+                if (probeProcess.ExitCode != 0)
+                {
+                    Debug.WriteLine($"Error probing file: {audioFile.SourcePath}");
+                    OnFileProcessed(audioFile, false);
+                    return;
+                }
+
+                dynamic probeData = Newtonsoft.Json.JsonConvert.DeserializeObject(probeOutput);
+                var audioStream = probeData.streams[0];
+                var currentBitrate = audioStream.bit_rate != null ? (int)audioStream.bit_rate : 0;
+                var currentChannels = audioStream.channels != null ? (int)audioStream.channels : 0;
+                var currentCodec = audioStream.codec_name;
+
+                Debug.WriteLine($"Original Details: {currentCodec}, {currentChannels}ch, {currentBitrate / 1000}kbps");
+
+                if (currentChannels == 1 && currentBitrate <= Settings.MonoCopyThreshold && currentBitrate != 0)
+                {
+                    Debug.WriteLine("Action: File is already mono and within tolerance. Copying.");
+                    var destFileCopy = Path.Combine(outputDir, sanitizedBaseName + sourceExt);
+                    File.Copy(audioFile.SourcePath, destFileCopy, true);
+                    OnFileProcessed(audioFile, true);
+                    return;
+                }
+
+                Debug.WriteLine("Action: Re-encoding to target format.");
+                var destFileCompress = Path.Combine(outputDir, sanitizedBaseName + ".m4b");
+                var ffmpegArgs = $"-i \"{audioFile.SourcePath}\" -vn -c:a aac -b:a {Settings.FormatBitrate(Settings.TargetBitrate)} -ar {Settings.TargetSampleRate} -af pan=mono|c0=0.5*c0+0.5*c1 -map_metadata 0 -map_chapters 0 -movflags +faststart -y -v info \"{destFileCompress}\"";
+                var ffmpegStartInfo = new ProcessStartInfo
+                {
+                    FileName = _ffmpegPath,
+                    Arguments = ffmpegArgs,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var ffmpegProcess = Process.Start(ffmpegStartInfo);
+                if (ffmpegProcess == null)
+                {
+                    Debug.WriteLine("Failed to start FFmpeg process");
+                    OnFileProcessed(audioFile, false);
+                    return;
+                }
+
+                await foreach (var line in ReadLinesAsync(ffmpegProcess.StandardError))
                 {
                     if (_cancellationToken.IsCancellationRequested)
                     {
-                        process.Kill();
+                        ffmpegProcess.Kill();
                         break;
                     }
 
-                    // TODO: Parse FFmpeg progress output and raise ProgressChanged event
+                    Debug.WriteLine(line);
+                    if (line.Contains("frame="))
+                    {
+                        var progress = ExtractProgress(line);
+                        OnProgressChanged(audioFile, progress);
+                    }
                 }
 
-                await process.WaitForExitAsync(_cancellationToken);
-                OnFileProcessed(audioFile, process.ExitCode == 0);
+                await ffmpegProcess.WaitForExitAsync(_cancellationToken);
+
+                if (ffmpegProcess.ExitCode != 0 || !File.Exists(destFileCompress) || new FileInfo(destFileCompress).Length == 0)
+                {
+                    Debug.WriteLine($"FFmpeg failed or produced an invalid file for {audioFile.SourcePath}");
+                    OnFileProcessed(audioFile, false);
+                }
+                else
+                {
+                    Debug.WriteLine($"Successfully processed file: {audioFile.SourcePath}");
+                    OnFileProcessed(audioFile, true);
+                }
             }
             catch (Exception ex)
             {
@@ -219,6 +270,12 @@ namespace Audiobook_Compressor.Services
         private void OnFileProcessed(AudioFileInfo file, bool success)
         {
             FileProcessed?.Invoke(this, new AudioFileProcessedEventArgs(file, success));
+        }
+
+        private double ExtractProgress(string ffmpegOutput)
+        {
+            // TODO: Implement logic to extract progress percentage from FFmpeg output
+            return 0.0;
         }
     }
 

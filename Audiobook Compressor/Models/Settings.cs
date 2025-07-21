@@ -1,11 +1,12 @@
 /*
-    Last Updated: 2025-07-17 07:15 CEST
-    Version: 1.1.0
-    State: Stable
-    Signed: User
+    Filename: Settings.cs
+    Last Updated: 2025-07-21 05:29 CEST
+    Version: 1.1.9
+    State: Experimental
+    Signed: GitHub Copilot
     
     Synopsis:
-    Complete settings management with robust value handling.
+    SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. Added TryParseSampleRate and FormatSampleRate. UI and logic are consistent.
 */
 
 using System;
@@ -62,11 +63,11 @@ namespace Audiobook_Compressor.Models
         });
 
         /// <summary>
-        /// Sample rate options in Hz
+        /// Sample rate options in Hz (displayed as Hz in UI, but values are numeric)
         /// </summary>
         public static readonly ReadOnlyCollection<string> SampleRateOptions = new(new[]
         {
-            "22050", "44100", "48000"
+            "22050 Hz", "44100 Hz", "48000 Hz"
         });
 
         /// <summary>
@@ -143,6 +144,26 @@ namespace Audiobook_Compressor.Models
         public static string FormatBitrate(int bitsPerSecond)
         {
             return $"{bitsPerSecond / 1000}k";
+        }
+
+        /// <summary>
+        /// Parses a sample rate string (e.g., "22050 Hz") to integer Hz
+        /// </summary>
+        public static bool TryParseSampleRate(string input, out int sampleRate)
+      {
+            sampleRate = DefaultSampleRate;
+            if (string.IsNullOrWhiteSpace(input))
+                return false;
+            input = input.Trim().ToLowerInvariant().Replace("hz", "").Trim();
+            return int.TryParse(input, out sampleRate);
+        }
+
+        /// <summary>
+        /// Formats a sample rate value as a string with "Hz" suffix
+        /// </summary>
+        public static string FormatSampleRate(int sampleRate)
+        {
+            return $"{sampleRate} Hz";
         }
     }
 }

@@ -1,12 +1,13 @@
 ﻿/*
-    Last Updated: 2025-07-17 07:15 CEST
-    Version: 1.1.0
-    State: Stable
-    Signed: User
+    Filename: MainWindow.xaml.cs
+    Last Updated: 2023-10-05 15:45 CEST
+    Version: 1.1.9
+    State: Experimental
+    Signed: GitHub Copilot
     
     Synopsis:
-    Complete UI functionality with comprehensive ComboBox handling.
-    All settings update properly and immediately reflect in summary.
+    SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. UI and logic are consistent.
+    Wired up Output Folder Defaults Set/Restore buttons. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field. Renamed Reset to Restore.
 */
 
 using System;
@@ -23,6 +24,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Audiobook_Compressor.Models;
 using Audiobook_Compressor.Services;
+using System.Xml.Linq;
 
 namespace Audiobook_Compressor
 {
@@ -35,6 +37,9 @@ namespace Audiobook_Compressor
         private CancellationTokenSource? _cancellationSource;
         private AudioProcessor? _audioProcessor;
 
+        private const string SettingsFile = "user-settings.xml";
+        private const string DefaultOutputPathFile = "default-output-path.txt";
+        
         public double StatusProgress
         {
             get => _statusProgress;
@@ -57,6 +62,8 @@ namespace Audiobook_Compressor
         {
             InitializeComponent();
             DataContext = this;
+
+            LoadUserSettings();
             
             // Add handlers for both expanders
             SettingsExpander.Expanded += Expander_ExpandedCollapsed;
@@ -103,8 +110,13 @@ namespace Audiobook_Compressor
 
             StartButton.Click += StartButton_Click;
             CancelButton.Click += CancelButton_Click;
+            MakeDefaultButton.Click += (s, e) => SaveDefaultOutputPath();
+            RestoreDefaultButton.Click += (s, e) => LoadDefaultOutputPath();
             
             UpdateSettingsSummary();
+
+            // Save settings on close
+            this.Closing += (s, e) => SaveUserSettings();
         }
 
         private void InitializeComboBoxes()
@@ -155,9 +167,9 @@ namespace Audiobook_Compressor
                 }
             };
 
-            // Setup sample rate options
+            // Setup sample rate options (display with Hz, store as int)
             SampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
-            SampleRateComboBox.SelectedItem = Settings.DefaultSampleRate.ToString();
+            SampleRateComboBox.SelectedItem = $"{Settings.DefaultSampleRate} Hz";
             SampleRateComboBox.SelectionChanged += SampleRate_SelectionChanged;
 
             // Setup threshold options
@@ -223,7 +235,7 @@ namespace Audiobook_Compressor
         {
             if (sender is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string rate)
             {
-                if (int.TryParse(rate.Replace("Hz", ""), out int sampleRate))
+                if (Settings.TryParseSampleRate(rate, out int sampleRate))
                 {
                     Settings.TargetSampleRate = sampleRate;
                     UpdateSettingsSummary();
@@ -255,7 +267,7 @@ namespace Audiobook_Compressor
         {
             var channels = ChannelsComboBox.SelectedItem?.ToString() ?? Settings.DefaultChannel;
             var bitrate = BitrateComboBox.Text;
-            var sampleRate = SampleRateComboBox.SelectedItem?.ToString() ?? $"{Settings.DefaultSampleRate}";
+            var sampleRate = SampleRateComboBox.SelectedItem?.ToString() ?? $"{Settings.DefaultSampleRate} Hz";
             var threshold = ThresholdComboBox.Text;
             var mode = BitrateControlComboBox.SelectedItem?.ToString() ?? Settings.DefaultBitrateControl;
             var passes = (PassesComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "1-Pass";
@@ -266,7 +278,7 @@ namespace Audiobook_Compressor
             if (!threshold.EndsWith("k", StringComparison.OrdinalIgnoreCase))
                 threshold += "k";
             if (!sampleRate.EndsWith("Hz", StringComparison.OrdinalIgnoreCase))
-                sampleRate += "Hz";
+                sampleRate += " Hz";
 
             SettingsSummaryText.Text = $"{channels} | {bitrate} | {sampleRate} | {threshold} Threshold | {mode} | {passes}";
         }
@@ -327,17 +339,16 @@ namespace Audiobook_Compressor
 
                 foreach (var file in files)
                 {
-                    if (_cancellationSource.Token.IsCancellationRequested)
+                    if (_cancellationSource?.Token.IsCancellationRequested == true)
                         break;
 
-                    var outputPath = file.GetOutputPath(OutputPathTextBox.Text);
                     UpdateStatus($"Processing {Path.GetFileName(file.SourcePath)}...", processed / (double)totalFiles);
 
-                    await _audioProcessor.ProcessAudioFileAsync(file, outputPath);
+                    await _audioProcessor.ProcessAudioFileAsync(file, OutputPathTextBox.Text);
                     processed++;
                 }
 
-                if (_cancellationSource.Token.IsCancellationRequested)
+                if (_cancellationSource?.Token.IsCancellationRequested == true)
                 {
                     LogMessage("Operation cancelled by user.");
                     UpdateStatus("Cancelled", null);
@@ -440,6 +451,66 @@ namespace Audiobook_Compressor
                     SizeToContent = SizeToContent.Height;
                 }
             }, System.Windows.Threading.DispatcherPriority.Render);
+        }
+
+        private void LoadUserSettings()
+        {
+            try
+            {
+                if (File.Exists(SettingsFile))
+                {
+                    var doc = XDocument.Load(SettingsFile);
+                    var root = doc.Element("UserSettings");
+                    if (root != null)
+                    {
+                        var src = root.Element("SourcePath")?.Value;
+                        var outp = root.Element("OutputPath")?.Value;
+                        if (!string.IsNullOrWhiteSpace(src))
+                            SourcePathTextBox.Text = src;
+                        if (!string.IsNullOrWhiteSpace(outp))
+                            OutputPathTextBox.Text = outp;
+                    }
+                }
+            }
+            catch { /* Ignore errors, use defaults */ }
+        }
+
+        private void SaveUserSettings()
+        {
+            try
+            {
+                var doc = new XDocument(
+                    new XElement("UserSettings",
+                        new XElement("SourcePath", SourcePathTextBox.Text),
+                        new XElement("OutputPath", OutputPathTextBox.Text)
+                    )
+                );
+                doc.Save(SettingsFile);
+            }
+            catch { /* Ignore errors */ }
+        }
+
+        private void SaveDefaultOutputPath()
+        {
+            try
+            {
+                File.WriteAllText(DefaultOutputPathFile, OutputPathTextBox.Text);
+            }
+            catch { /* Ignore errors */ }
+        }
+
+        private void LoadDefaultOutputPath()
+        {
+            try
+            {
+                if (File.Exists(DefaultOutputPathFile))
+                {
+                    var path = File.ReadAllText(DefaultOutputPathFile);
+                    if (!string.IsNullOrWhiteSpace(path))
+                        OutputPathTextBox.Text = path;
+                }
+            }
+            catch { /* Ignore errors */ }
         }
     }
 }
