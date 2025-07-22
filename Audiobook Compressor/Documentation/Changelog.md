@@ -1,11 +1,13 @@
 Filename: Changelog.md
-Last Updated: 2025-07-21 05:28 CEST
-Version: 1.1.9
+Last Updated: 2025-07-22 03:56 CEST
+Version: 1.1.10
 State: Experimental
 Signed: GitHub Copilot
 
 Synopsis:
-SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. UI and logic are consistent. Removed border from editable ComboBox values in Compression Settings for a cleaner look. Renamed Output Folder Defaults 'Reset' button to 'Restore'. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
+- UI and logic for ComboBox input handling refined: accepts and normalizes 'kb' (e.g., '67kb' -> '67k') for bitrate and threshold fields, updating the field and summary accordingly (1C2).
+- User is notified if settings file is missing or corrupted and defaults are used (4C2).
+- Updated filename sanitization logic to allow the centre dot (U+00B7) character (2C4).
 
 # Changelog
 
@@ -35,14 +37,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. UI and logic are consistent.
-- Wired up Output Folder Defaults Set/Restore buttons. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
+- Review.md created: Comprehensive review of code issues, user pitfalls, and improvement suggestions, including remedies for each concern. Triaged all items by Type, Effort, and Priority for a structured roadmap.
 
 ### Changed
 * Renamed Output Folder Defaults 'Reset' button to 'Restore'.
 * Removed border from editable ComboBox values in Compression Settings for a cleaner look.
 * Updated StartButton_Click to include null checks for `_cancellationSource`.
 * Changed the default output directory to be a sibling of the source directory.
+* Renamed Output Folder Defaults 'Reset' button to 'Restore'. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
+* UI and logic are consistent. Removed border from editable ComboBox values in Compression Settings for a cleaner look.
+* SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg.
 
 ### Fixed
 * Output path logic in MainWindow and AudioProcessor now ensures files are placed in the correct output directory, not in subfolders named after the file.

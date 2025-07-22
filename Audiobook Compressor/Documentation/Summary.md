@@ -1,11 +1,11 @@
 Filename: Summary.md
-Last Updated: 2025-07-21 01:37 CEST
-Version: 1.1.4
+Last Updated: 2025-07-22 03:56 CEST
+Version: 1.1.6
 State: Experimental
-Signed: GitHub Copilot
+Signed: Gemini
 
 Synopsis:
-Output path logic in MainWindow and AudioProcessor fixed to prevent creation of subfolders named after files. Documentation conventions strictly followed.
+Reinforced the versioning logic with both an explicit rule and a concrete example for maximum clarity.
 
 ---
 
@@ -85,7 +85,9 @@ The functional logic for file processing must be ported from the provided PowerS
 ### 6. Project Workflow & Conventions
 * **File Headers:** All project files must adhere to the structure defined in `Documentation/FileHeaderConvention.md`.
 * **State Management:** Any modification to a file automatically sets its state to `Experimental`. The `Stable` tag is only to be used for deliberate releases **at the user's explicit request**.
-* **Versioning & Branching:** Each experimental change iterates the minor version number (e.g., `1.0.0` -> `1.0.1`). Stable, milestone releases get a major version bump (e.g., `1.0.13` -> `1.1.0`), are tagged `Stable`, and are pushed to the `main` branch on GitHub, **only upon explicit instruction from the user**. Ongoing work occurs in the `experimental` branch.
+* **Versioning & Branching:** Each experimental change iterates the patch version number (e.g., `1.0.9` -> `1.0.10`). Stable, milestone releases get a major/minor version bump (e.g., `1.1.x` -> `1.2.0`), are tagged `Stable`, and are pushed to the `main` branch on GitHub, **only upon explicit instruction from the user**. Ongoing work occurs in the `experimental` branch.
+    * **Note on File Versioning:** Any time you edit a file its individual patch version ticks up. When a stable release is pushed to the `main` branch, all files tick over to the same release version (e.g., `1.2.0`).
+    * **Note on Versioning Logic:** Patch and minor versions are incremented sequentially as whole numbers. For example, version `1.1.9` is followed by `1.1.10`.
 * **Documentation:** A `Changelog.md` file will log all changes, and this executive `Summary.md` will be kept current as a handoff document.
 * **Nullability:** The project uses C# nullable reference types. All nullable members must be explicitly marked with `?` and properly handled with null checks.
 
@@ -104,11 +106,9 @@ To ensure consistent and accurate contributions, any collaborating AI must adher
 1.  **Principle of Strict Adherence**: All rules and conventions outlined in this document are mandatory. Do not deviate from or make assumptions about these instructions.
 2.  **Follow Document References**: When this document refers to other project documents (e.g., `Documentation/FileHeaderConvention.md`), you are required to read that document and apply its rules and conventions as if they were written here directly.
 3.  **Verify Context**: Before making any changes, confirm you have the full and correct context of the current task and the latest versions of all relevant files.
-4.  **Timestamp Procedure**: Use the PowerShell command `Get-Date -Format "yyyy-MM-dd HH:mm"` to generate timestamps for file headers and changelog entries.
+4.  **Timestamp Procedure**: Use the placeholder `YYYY-MM-DD HH:mm PLACEHOLDER` for timestamps. A separate process will replace the placeholder with an actual timestamp.
 5.  **Comprehensive Application**: Apply all relevant rules in a single, comprehensive action to maintain consistency and minimize iterative corrections.
 
 ### Recent Updates
 - Output path logic in MainWindow and AudioProcessor now ensures files are placed in the correct output directory, not in subfolders named after the file.
 - Documentation conventions strictly followed for all changes.
-
----

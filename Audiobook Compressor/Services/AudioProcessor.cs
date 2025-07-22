@@ -1,12 +1,13 @@
 /*
     Filename: AudioProcessor.cs
-    Last Updated: 2025-07-21 15:10 CEST
-    Version: 1.1.4
+    Last Updated: 2025-07-22 05:35 CEST
+    Version: 1.1.5
     State: Experimental
     Signed: GitHub Copilot
     
     Synopsis:
     Enhanced audio processing service with complete logic ported from PowerShell script. Output path logic fixed to prevent creation of extra subfolders named after files.
+    - Updated filename sanitization logic to allow the centre dot (U+00B7) character (2C4).
 */
 
 using System;
@@ -122,8 +123,9 @@ namespace Audiobook_Compressor.Services
         /// </summary>
         private static string SanitizeFilename(string fileName)
         {
-            var invalidChars = new string(Path.GetInvalidFileNameChars()) + "?";
-            var regex = new Regex($"[{Regex.Escape(invalidChars)}]");
+            // Allow the centre dot (U+00B7) and other valid characters, but replace others
+            var validChars = @"[a-zA-Z0-9_\-\.~ ]";
+            var regex = new Regex($"[^{validChars}]");
             var sanitized = regex.Replace(fileName, "-");
             sanitized = sanitized.Trim().TrimEnd('.').Replace("--", "-");
             return sanitized;
@@ -195,7 +197,21 @@ namespace Audiobook_Compressor.Services
 
                 Debug.WriteLine("Action: Re-encoding to target format.");
                 var destFileCompress = Path.Combine(outputDir, sanitizedBaseName + ".m4b");
-                var ffmpegArgs = $"-i \"{audioFile.SourcePath}\" -vn -c:a aac -b:a {Settings.FormatBitrate(Settings.TargetBitrate)} -ar {Settings.TargetSampleRate} -af pan=mono|c0=0.5*c0+0.5*c1 -map_metadata 0 -map_chapters 0 -movflags +faststart -y -v info \"{destFileCompress}\"";
+                string channelArgs = "";
+                string filterArgs = "";
+                if (Settings.CurrentChannel == "Mono")
+                {
+                    // Use pan filter for mono
+                    channelArgs = "-ac 1";
+                    filterArgs = "-af pan=mono|c0=0.5*c0+0.5*c1";
+                }
+                else if (Settings.CurrentChannel == "Stereo")
+                {
+                    // Use stereo, no pan filter
+                    channelArgs = "-ac 2";
+                    filterArgs = "";
+                }
+                var ffmpegArgs = $"-i \"{audioFile.SourcePath}\" -vn -c:a aac -b:a {Settings.FormatBitrate(Settings.TargetBitrate)} -ar {Settings.TargetSampleRate} {channelArgs} {filterArgs} -map_metadata 0 -map_chapters 0 -movflags +faststart -y -v info \"{destFileCompress}\"";
                 var ffmpegStartInfo = new ProcessStartInfo
                 {
                     FileName = _ffmpegPath,

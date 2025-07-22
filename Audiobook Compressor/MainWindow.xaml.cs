@@ -1,13 +1,15 @@
 ﻿/*
     Filename: MainWindow.xaml.cs
-    Last Updated: 2023-10-05 15:45 CEST
-    Version: 1.1.9
+    Last Updated: 2025-07-22 03:56 CEST
+    Version: 1.1.12
     State: Experimental
     Signed: GitHub Copilot
-    
+
     Synopsis:
-    SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. UI and logic are consistent.
-    Wired up Output Folder Defaults Set/Restore buttons. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field. Renamed Reset to Restore.
+    - Added user notification if settings file is missing or corrupted and defaults are used (4C2).
+    - Refined ComboBox input handling for bitrate and threshold: accepts and normalizes 'kb' (e.g., '67kb' -> '67k') and updates the field and summary accordingly (1C2).
+    - Updated StartButton logic: removed XAML event handler, now compression only starts after user closes collision dialog and chooses OK (blocking MessageBox). (2024-XX-XX)
+    - Restored blocking collision warning at Start Compression: StartButton.Click now checks for collision and only calls StartButton_Click if user chooses OK. (2024-XX-XX)
 */
 
 using System;
@@ -38,7 +40,8 @@ namespace Audiobook_Compressor
         private AudioProcessor? _audioProcessor;
 
         private const string SettingsFile = "user-settings.xml";
-        private const string DefaultOutputPathFile = "default-output-path.txt";
+        
+        private string _defaultOutputPath = string.Empty;
         
         public double StatusProgress
         {
@@ -57,6 +60,9 @@ namespace Audiobook_Compressor
             get => _statusText;
             set { _statusText = value; OnPropertyChanged(); }
         }
+
+        private bool _sourceCollisionContinue = false;
+        private bool _outputCollisionContinue = false;
 
         public MainWindow()
         {
@@ -83,14 +89,23 @@ namespace Audiobook_Compressor
                     UseDescriptionForTitle = true
                 };
 
-                if (dialog.ShowDialog() == WinForms.DialogResult.OK)
+                while (true)
                 {
-                    SourcePathTextBox.Text = dialog.SelectedPath;
-                    // Set default output path if empty
-                    if (string.IsNullOrWhiteSpace(OutputPathTextBox.Text))
+                    if (dialog.ShowDialog() == WinForms.DialogResult.OK)
                     {
-                        OutputPathTextBox.Text = Path.Combine(dialog.SelectedPath, "Compressed_Audiobooks");
+                        SourcePathTextBox.Text = dialog.SelectedPath;
+                        if (ShowCollisionDialog(SourcePathTextBox.Text, OutputPathTextBox.Text, "Source"))
+                        {
+                            _sourceCollisionContinue = true;
+                            break;
+                        }
+                        else
+                        {
+                            _sourceCollisionContinue = false;
+                            continue;
+                        }
                     }
+                    break;
                 }
             };
 
@@ -102,21 +117,65 @@ namespace Audiobook_Compressor
                     UseDescriptionForTitle = true
                 };
 
-                if (dialog.ShowDialog() == WinForms.DialogResult.OK)
+                while (true)
                 {
-                    OutputPathTextBox.Text = dialog.SelectedPath;
+                    if (dialog.ShowDialog() == WinForms.DialogResult.OK)
+                    {
+                        OutputPathTextBox.Text = dialog.SelectedPath;
+                        if (ShowCollisionDialog(SourcePathTextBox.Text, OutputPathTextBox.Text, "Output"))
+                        {
+                            _outputCollisionContinue = true;
+                            break;
+                        }
+                        else
+                        {
+                            _outputCollisionContinue = false;
+                            continue;
+                        }
+                    }
+                    break;
                 }
             };
 
-            StartButton.Click += StartButton_Click;
+            MakeDefaultButton.Click += (s, e) => { SaveDefaultOutputPath(); };
+            RestoreDefaultButton.Click += (s, e) => { LoadDefaultOutputPath(); };
+
+            StartButton.Click += (s, e) =>
+            {
+                if (IsSourceOutputCollision())
+                {
+                    var result = System.Windows.MessageBox.Show(
+                        "Source and Output folders are the same. This may overwrite your source files.\n\nDo you want to continue?",
+                        "Folder Collision Detected",
+                        MessageBoxButton.OKCancel,
+                        MessageBoxImage.Warning);
+                    if (result != MessageBoxResult.OK)
+                    {
+                        // User chose Cancel, do not start
+                        return;
+                    }
+                }
+                // Only start compression if user chose OK
+                StartButton_Click(s, e);
+            };
             CancelButton.Click += CancelButton_Click;
-            MakeDefaultButton.Click += (s, e) => SaveDefaultOutputPath();
-            RestoreDefaultButton.Click += (s, e) => LoadDefaultOutputPath();
-            
             UpdateSettingsSummary();
 
             // Save settings on close
             this.Closing += (s, e) => SaveUserSettings();
+        }
+
+        private static string NormalizeBitrateInput(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input)) return input;
+            input = input.Trim().ToLowerInvariant();
+            if (input.EndsWith("kb"))
+                input = input[..^2]; // Remove 'kb'
+            else if (input.EndsWith("k"))
+                input = input[..^1]; // Remove 'k'
+            // Remove any whitespace
+            input = input.Trim();
+            return input;
         }
 
         private void InitializeComboBoxes()
@@ -133,11 +192,17 @@ namespace Audiobook_Compressor
             {
                 if (s is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string bitrate)
                 {
-                    if (Settings.TryParseBitrate(bitrate, out int bps))
+                    var normalized = NormalizeBitrateInput(bitrate);
+                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
                         Settings.TargetBitrate = bps;
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a bitrate between 32k and 192k.", "Invalid Bitrate", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultBitrate);
                     }
                 }
             };
@@ -145,11 +210,17 @@ namespace Audiobook_Compressor
             {
                 if (e.Key == Key.Enter && s is System.Windows.Controls.ComboBox comboBox)
                 {
-                    if (Settings.TryParseBitrate(comboBox.Text, out int bps))
+                    var normalized = NormalizeBitrateInput(comboBox.Text);
+                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
                         Settings.TargetBitrate = bps;
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a bitrate between 32k and 192k.", "Invalid Bitrate", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultBitrate);
                     }
                     e.Handled = true;
                 }
@@ -158,11 +229,17 @@ namespace Audiobook_Compressor
             {
                 if (s is System.Windows.Controls.ComboBox comboBox)
                 {
-                    if (Settings.TryParseBitrate(comboBox.Text, out int bps))
+                    var normalized = NormalizeBitrateInput(comboBox.Text);
+                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
                         Settings.TargetBitrate = bps;
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a bitrate between 32k and 192k.", "Invalid Bitrate", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultBitrate);
                     }
                 }
             };
@@ -171,6 +248,41 @@ namespace Audiobook_Compressor
             SampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
             SampleRateComboBox.SelectedItem = $"{Settings.DefaultSampleRate} Hz";
             SampleRateComboBox.SelectionChanged += SampleRate_SelectionChanged;
+            SampleRateComboBox.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter && s is System.Windows.Controls.ComboBox comboBox)
+                {
+                    if (Settings.TryParseSampleRate(comboBox.Text, out int sr) && (sr == 22050 || sr == 44100 || sr == 48000))
+                    {
+                        Settings.TargetSampleRate = sr;
+                        comboBox.Text = Settings.FormatSampleRate(sr);
+                        UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a valid sample rate: 22050, 44100, or 48000 Hz.", "Invalid Sample Rate", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatSampleRate(Settings.DefaultSampleRate);
+                    }
+                    e.Handled = true;
+                }
+            };
+            SampleRateComboBox.LostFocus += (s, e) =>
+            {
+                if (s is System.Windows.Controls.ComboBox comboBox)
+                {
+                    if (Settings.TryParseSampleRate(comboBox.Text, out int sr) && (sr == 22050 || sr == 44100 || sr == 48000))
+                    {
+                        Settings.TargetSampleRate = sr;
+                        comboBox.Text = Settings.FormatSampleRate(sr);
+                        UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a valid sample rate: 22050, 44100, or 48000 Hz.", "Invalid Sample Rate", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatSampleRate(Settings.DefaultSampleRate);
+                    }
+                }
+            };
 
             // Setup threshold options
             ThresholdComboBox.ItemsSource = Settings.BitrateOptions;
@@ -179,11 +291,17 @@ namespace Audiobook_Compressor
             {
                 if (s is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string threshold)
                 {
-                    if (Settings.TryParseBitrate(threshold, out int bps))
+                    var normalized = NormalizeBitrateInput(threshold);
+                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
                         Settings.MonoCopyThreshold = bps;
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a threshold between 32k and 192k.", "Invalid Threshold", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
                     }
                 }
             };
@@ -191,11 +309,17 @@ namespace Audiobook_Compressor
             {
                 if (e.Key == Key.Enter && s is System.Windows.Controls.ComboBox comboBox)
                 {
-                    if (Settings.TryParseBitrate(comboBox.Text, out int bps))
+                    var normalized = NormalizeBitrateInput(comboBox.Text);
+                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
                         Settings.MonoCopyThreshold = bps;
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a threshold between 32k and 192k.", "Invalid Threshold", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
                     }
                     e.Handled = true;
                 }
@@ -204,11 +328,17 @@ namespace Audiobook_Compressor
             {
                 if (s is System.Windows.Controls.ComboBox comboBox)
                 {
-                    if (Settings.TryParseBitrate(comboBox.Text, out int bps))
+                    var normalized = NormalizeBitrateInput(comboBox.Text);
+                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
                         Settings.MonoCopyThreshold = bps;
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Please enter a threshold between 32k and 192k.", "Invalid Threshold", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
                     }
                 }
             };
@@ -465,14 +595,25 @@ namespace Audiobook_Compressor
                     {
                         var src = root.Element("SourcePath")?.Value;
                         var outp = root.Element("OutputPath")?.Value;
+                        var defOutp = root.Element("DefaultOutputPath")?.Value;
                         if (!string.IsNullOrWhiteSpace(src))
                             SourcePathTextBox.Text = src;
                         if (!string.IsNullOrWhiteSpace(outp))
                             OutputPathTextBox.Text = outp;
+                        if (!string.IsNullOrWhiteSpace(defOutp))
+                            _defaultOutputPath = defOutp;
                     }
                 }
             }
-            catch { /* Ignore errors, use defaults */ }
+            catch
+            {
+                // Notify user if settings file is missing or corrupted and defaults are used
+                System.Windows.MessageBox.Show(
+                    "Settings file is missing or corrupted. Default settings will be used.",
+                    "Settings Load Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
         }
 
         private void SaveUserSettings()
@@ -482,7 +623,8 @@ namespace Audiobook_Compressor
                 var doc = new XDocument(
                     new XElement("UserSettings",
                         new XElement("SourcePath", SourcePathTextBox.Text),
-                        new XElement("OutputPath", OutputPathTextBox.Text)
+                        new XElement("OutputPath", OutputPathTextBox.Text),
+                        new XElement("DefaultOutputPath", _defaultOutputPath)
                     )
                 );
                 doc.Save(SettingsFile);
@@ -492,25 +634,45 @@ namespace Audiobook_Compressor
 
         private void SaveDefaultOutputPath()
         {
-            try
-            {
-                File.WriteAllText(DefaultOutputPathFile, OutputPathTextBox.Text);
-            }
-            catch { /* Ignore errors */ }
+            _defaultOutputPath = OutputPathTextBox.Text;
+            SaveUserSettings();
         }
 
         private void LoadDefaultOutputPath()
         {
-            try
+            if (!string.IsNullOrWhiteSpace(_defaultOutputPath))
+                OutputPathTextBox.Text = _defaultOutputPath;
+        }
+
+        private void CheckSourceOutputCollision()
+        {
+            if (IsSourceOutputCollision())
             {
-                if (File.Exists(DefaultOutputPathFile))
-                {
-                    var path = File.ReadAllText(DefaultOutputPathFile);
-                    if (!string.IsNullOrWhiteSpace(path))
-                        OutputPathTextBox.Text = path;
-                }
+                System.Windows.MessageBox.Show(
+                    "Warning: Source and Output folders are the same. This may overwrite your source files.",
+                    "Folder Collision Detected",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
             }
-            catch { /* Ignore errors */ }
+        }
+
+        private bool IsSourceOutputCollision()
+        {
+            return string.Equals(SourcePathTextBox.Text, OutputPathTextBox.Text, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool ShowCollisionDialog(string source, string output, string context)
+        {
+            if (string.Equals(source, output, StringComparison.OrdinalIgnoreCase))
+            {
+                var result = System.Windows.MessageBox.Show(
+                    "Source and Output folders are the same. This may overwrite your source files.\n\nDo you want to continue?",
+                    "Folder Collision Detected",
+                    MessageBoxButton.OKCancel,
+                    MessageBoxImage.Warning);
+                return result == MessageBoxResult.OK;
+            }
+            return true;
         }
     }
 }

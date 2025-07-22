@@ -1,14 +1,14 @@
 ﻿<!--
-    Last Updated: 2025-07-21 05:29 CEST
-    Version: 1.1.9
+    Last Updated: 2025-07-22 05:35 CEST
+    Version: 1.1.12
     State: Experimental
     Signed: GitHub Copilot
     
     Synopsis:
-    SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. UI and logic are consistent.
-    Removed border from editable ComboBox values in Compression Settings for a cleaner look.
-    Renamed Output Folder Defaults 'Reset' button to 'Restore'.
-    'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
+    - UI and logic for ComboBox input handling refined: accepts and normalizes 'kb' (e.g., '67kb' -> '67k') for bitrate and threshold fields, updating the field and summary accordingly (1C2).
+    - No UI changes required for settings fallback or filename sanitization.
+    - Removed Click="StartButton_Click" from StartButton. Now only code-behind handler is used, ensuring blocking dialog before compression starts. (2024-XX-XX)
+    - Restored blocking collision warning at Start Compression: StartButton.Click now checks for collision and only calls StartButton_Click if user chooses OK. (2024-XX-XX)
 -->
 <Window x:Class="Audiobook_Compressor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -226,7 +226,7 @@
             </Expander>
 
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                <Button x:Name="StartButton" Content="Start" Style="{StaticResource ActionButtonStyle}" Click="StartButton_Click"/>
+                <Button x:Name="StartButton" Content="Start" Style="{StaticResource ActionButtonStyle}" />
                 <Button x:Name="CancelButton" Content="Cancel" Style="{StaticResource ActionButtonStyle}" IsEnabled="False"/>
             </StackPanel>
 

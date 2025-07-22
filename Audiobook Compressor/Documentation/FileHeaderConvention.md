@@ -1,5 +1,5 @@
 Filename: FileHeaderConvention.md
-Last Updated: 2025-07-17 07:15 CEST
+Last Updated: 2025-07-22 03:56 CEST
 Version: 1.1.0
 State: Stable
 Signed: User
@@ -22,7 +22,7 @@ This section defines the header format for all C# source code files. The header 
 ```csharp
 /*
     Filename: MainWindow.xaml.cs
-    Last Updated: 2025-07-21 02:54 CEST
+    Last Updated: YYYY-MM-DD HH:mm PLACEHOLDER
     Version: 1.1.0
     State: Stable
     Signed: User
@@ -39,7 +39,7 @@ This section defines the header format for all XAML markup files. The header is 
 ```xml
 <!--
     Filename: MainWindow.xaml
-    Last Updated: 2025-07-21 02:54 CEST
+    Last Updated: YYYY-MM-DD HH:mm PLACEHOLDER
     Version: 1.1.0
     State: Stable
     Signed: User
@@ -55,7 +55,7 @@ This section defines the header format for all Markdown documentation files. As 
 
 ```markdown
 Filename: Summary.md
-Last Updated: 2025-07-21 02:54 CEST
+Last Updated: YYYY-MM-DD HH:mm PLACEHOLDER
 Version: 1.1.0
 State: Stable
 Signed: User
