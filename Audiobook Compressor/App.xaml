@@ -1,13 +1,14 @@
 ﻿<!--
-    Last Updated: 2025-07-17 03:10 CEST
-    Version: 1.0.3
+    Filename: App.xaml
+    Last Updated: 2025-07-25 03:32
+    Version: 1.2.0
     State: Stable
     Signed: User
-    
+
     Synopsis:
-    Application entry point for Audiobook Compressor.
-    Fixed v1.0.2 broken state where app resources were incorrectly deployed.
-    Restored proper configuration and dependency handling.
+    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
+    - Documentation and changelog discipline enforced for release.
+    - No code changes since last version except header and documentation updates.
 -->
 <Application x:Class="Audiobook_Compressor.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"

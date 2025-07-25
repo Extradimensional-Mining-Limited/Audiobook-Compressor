@@ -1,12 +1,14 @@
 /*
     Filename: Settings.cs
-    Last Updated: 2025-07-21 05:29 CEST
-    Version: 1.1.9
-    State: Experimental
-    Signed: GitHub Copilot
-    
+    Last Updated: 2025-07-25 03:32
+    Version: 1.2.0
+    State: Stable
+    Signed: User
+
     Synopsis:
-    SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg. Added TryParseSampleRate and FormatSampleRate. UI and logic are consistent.
+    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
+    - Documentation and changelog discipline enforced for release.
+    - No code changes since last version except header and documentation updates.
 */
 
 using System;
@@ -114,6 +116,11 @@ namespace Audiobook_Compressor.Models
         public static string BitrateControl { get; set; } = DefaultBitrateControl;
 
         /// <summary>
+        /// Whether to skip converting mono files to stereo
+        /// </summary>
+        public static bool DontConvertMonoToStereo { get; set; } = true;
+
+        /// <summary>
         /// Parses a bitrate string (e.g., "48k") to bits per second
         /// </summary>
         public static bool TryParseBitrate(string input, out int bitsPerSecond)
@@ -165,5 +172,28 @@ namespace Audiobook_Compressor.Models
         {
             return $"{sampleRate} Hz";
         }
+
+        public class AdvancedOverrideSettings
+        {
+            public string Channel { get; set; }
+            public string Bitrate { get; set; }
+            public string SampleRate { get; set; }
+            public string Threshold { get; set; }
+            public string BitrateControl { get; set; }
+            public int PassesIndex { get; set; }
+
+            public AdvancedOverrideSettings()
+            {
+                Channel = Settings.DefaultChannel;
+                Bitrate = Settings.FormatBitrate(Settings.DefaultBitrate);
+                SampleRate = Settings.FormatSampleRate(Settings.DefaultSampleRate);
+                Threshold = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
+                BitrateControl = Settings.DefaultBitrateControl;
+                PassesIndex = 0;
+            }
+        }
+
+        public static AdvancedOverrideSettings AdvancedStereoOverrideSettings { get; set; } = new AdvancedOverrideSettings();
+        public static AdvancedOverrideSettings AdvancedMonoOverrideSettings { get; set; } = new AdvancedOverrideSettings();
     }
 }

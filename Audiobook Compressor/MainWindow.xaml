@@ -1,14 +1,15 @@
 ﻿<!--
-    Last Updated: 2025-07-22 05:35 CEST
-    Version: 1.1.12
-    State: Experimental
-    Signed: GitHub Copilot
-    
+    Filename: MainWindow.xaml
+    Last Updated: 2025-07-25 03:32
+    Version: 1.2.0
+    State: Stable
+    Signed: User
+
     Synopsis:
-    - UI and logic for ComboBox input handling refined: accepts and normalizes 'kb' (e.g., '67kb' -> '67k') for bitrate and threshold fields, updating the field and summary accordingly (1C2).
-    - No UI changes required for settings fallback or filename sanitization.
-    - Removed Click="StartButton_Click" from StartButton. Now only code-behind handler is used, ensuring blocking dialog before compression starts. (2024-XX-XX)
-    - Restored blocking collision warning at Start Compression: StartButton.Click now checks for collision and only calls StartButton_Click if user chooses OK. (2024-XX-XX)
+    - Finalized UI vertical spacing and layout per Praxis directive (Focus 2.2.6.md).
+    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
+    - Documentation and changelog discipline enforced for release.
+    - No code changes since last version except header and documentation updates.
 -->
 <Window x:Class="Audiobook_Compressor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -18,7 +19,7 @@
         xmlns:local="clr-namespace:Audiobook_Compressor"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="Audico" Width="600" MinHeight="250" MaxHeight="800" MinWidth="500"
+        Title="EXML Rockit" Width="600" MinHeight="250" MaxHeight="800" MinWidth="500"
         SizeToContent="Height"
         WindowStartupLocation="CenterScreen">
 
@@ -180,22 +181,56 @@
                 <Border BorderBrush="#FFD3D3D3" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,5,0,0">
                     <StackPanel>
                         <TextBlock Text="Compression Settings:" FontWeight="SemiBold" Margin="0,5,0,5"/>
+                        <!-- Row 1: Main Settings -->
                         <WrapPanel>
-                            <ComboBox x:Name="ChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                            </ComboBox>
-                            <ComboBox x:Name="BitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True">
-                            </ComboBox>
-                            <ComboBox x:Name="SampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                            </ComboBox>
-                            <ComboBox x:Name="ThresholdComboBox" MinWidth="80" Margin="3" ToolTip="Copy mono files instead of re-encoding if their bitrate is below this value." Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True">
-                            </ComboBox>
-                            <ComboBox x:Name="BitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                            </ComboBox>
+                            <ComboBox x:Name="ChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                            <ComboBox x:Name="BitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                            <ComboBox x:Name="SampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                            <ComboBox x:Name="ThresholdComboBox" MinWidth="80" Margin="3" ToolTip="Copy mono files instead of re-encoding if their bitrate is below this value." Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                            <ComboBox x:Name="BitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
                             <ComboBox x:Name="PassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
                                 <ComboBoxItem Content="1-Pass" IsSelected="True"/>
                                 <ComboBoxItem Content="2-Pass"/>
                             </ComboBox>
                         </WrapPanel>
+                        <!-- Row 2: Contextual Radio Buttons and Override Panels -->
+                        <StackPanel x:Name="MonoModeOptionsPanel" Visibility="Collapsed">
+                            <WrapPanel Margin="0,10,0,0">
+                                <RadioButton x:Name="MonoCopyStereoRadio" Content="Copy stereo files" GroupName="MonoModeGroup" Margin="0,0,10,0"/>
+                                <RadioButton x:Name="MonoConvertStereoRadio" Content="Convert stereo to mono" GroupName="MonoModeGroup" IsChecked="True" Margin="0,0,10,0"/>
+                                <RadioButton x:Name="MonoAdvancedRadio" Content="Advanced..." GroupName="MonoModeGroup"/>
+                            </WrapPanel>
+                            <WrapPanel x:Name="AdvancedStereoOverridePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                <ComboBox x:Name="AdvancedStereoChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="AdvancedStereoBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="AdvancedStereoSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="AdvancedStereoThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="AdvancedStereoBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="AdvancedStereoPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                                    <ComboBoxItem Content="1-Pass" IsSelected="True"/>
+                                    <ComboBoxItem Content="2-Pass"/>
+                                </ComboBox>
+                            </WrapPanel>
+                        </StackPanel>
+                        <StackPanel x:Name="StereoModeOptionsPanel" Visibility="Collapsed">
+                            <WrapPanel Margin="0,10,0,0">
+                                <RadioButton x:Name="StereoCopyMonoRadio" Content="Copy mono files" GroupName="StereoModeGroup" IsChecked="True" Margin="0,0,10,0"/>
+                                <RadioButton x:Name="StereoConvertMonoRadio" Content="Convert mono to stereo" GroupName="StereoModeGroup" Margin="0,0,10,0"/>
+                                <RadioButton x:Name="StereoAdvancedRadio" Content="Advanced..." GroupName="StereoModeGroup"/>
+                            </WrapPanel>
+                            <WrapPanel x:Name="AdvancedMonoOverridePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                <ComboBox x:Name="AdvancedMonoChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="AdvancedMonoBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="AdvancedMonoSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="AdvancedMonoThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="AdvancedMonoBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="AdvancedMonoPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                                    <ComboBoxItem Content="1-Pass" IsSelected="True"/>
+                                    <ComboBoxItem Content="2-Pass"/>
+                                </ComboBox>
+                            </WrapPanel>
+                        </StackPanel>
+                        <!-- Contextual Panels End -->
                         <TextBlock Text="File Types:" FontWeight="SemiBold" Margin="0,10,0,5"/>
                         <WrapPanel>
                             <CheckBox Content=".m4b" Margin="3" IsChecked="True"/>

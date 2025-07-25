@@ -1,13 +1,14 @@
 Filename: Changelog.md
-Last Updated: 2025-07-22 03:56 CEST
-Version: 1.1.10
-State: Experimental
-Signed: GitHub Copilot
+    Last Updated: 2025-07-25 03:32
+    Version: 1.2.0
+    State: Stable
+    Signed: User
 
-Synopsis:
-- UI and logic for ComboBox input handling refined: accepts and normalizes 'kb' (e.g., '67kb' -> '67k') for bitrate and threshold fields, updating the field and summary accordingly (1C2).
-- User is notified if settings file is missing or corrupted and defaults are used (4C2).
-- Updated filename sanitization logic to allow the centre dot (U+00B7) character (2C4).
+    Synopsis:
+- All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
+- Finalized UI vertical spacing and layout per Praxis directive (Focus 2.2.6.md).
+- Documentation and changelog discipline enforced for release.
+- No code changes since last version except header and documentation updates.
 
 # Changelog
 
@@ -37,9 +38,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Review.md created: Comprehensive review of code issues, user pitfalls, and improvement suggestions, including remedies for each concern. Triaged all items by Type, Effort, and Priority for a structured roadmap.
 
 ### Changed
+
+### Fixed
+
+## [1.2.0] - 2025-07-25 03:32 CEST - [Stable] - [Signed: User]
+
+### Added
+- Review.md created: Comprehensive review of code issues, user pitfalls, and improvement suggestions, including remedies for each concern. Triaged all items by Type, Effort, and Priority for a structured roadmap.
+- Advanced override settings for contextual panels: Added `AdvancedStereoOverrideSettings` and `AdvancedMonoOverrideSettings` objects to `Settings.cs` to store independent override values for each advanced panel.
+- UI logic for one-time sync: When the user opens an advanced panel for the first time after changing main settings, the advanced panel is initialized with the current main settings.
+- Persistence for advanced override settings: Advanced panel settings are saved to and loaded from the settings file (`user-settings.xml`) between sessions.
+- Binding of advanced panel controls: Advanced panel ComboBoxes are now bound to the corresponding override settings objects, ensuring UI and state consistency.
+
+### Changed
+- Finalized UI vertical spacing and layout per Praxis directive (Focus 2.2.6.md).
 * Renamed Output Folder Defaults 'Reset' button to 'Restore'.
 * Removed border from editable ComboBox values in Compression Settings for a cleaner look.
 * Updated StartButton_Click to include null checks for `_cancellationSource`.
@@ -47,8 +61,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed Output Folder Defaults 'Reset' button to 'Restore'. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
 * UI and logic are consistent. Removed border from editable ComboBox values in Compression Settings for a cleaner look.
 * SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg.
+- Updated file headers in all altered files to follow the latest convention and include a placeholder timestamp.
+- MainWindow.xaml.cs and Settings.cs now implement logic for contextual panel state management and persistence as specified in Focus.md.
+- MainWindow.xaml updated to reflect header changes and document advanced override logic.
+- Changelog and Summary file headers updated to reflect latest changes and use placeholder timestamps.
+- Renamed Output Folder Defaults 'Reset' button to 'Restore'.
+- Removed border from editable ComboBox values in Compression Settings for a cleaner look.
+- Updated StartButton_Click to include null checks for `_cancellationSource`.
+- Changed the default output directory to be a sibling of the source directory.
+- Renamed Output Folder Defaults 'Reset' button to 'Restore'. 'Set' stores the current Output Folder as default; 'Restore' loads it into the Output Folder field.
+- UI and logic are consistent. Removed border from editable ComboBox values in Compression Settings for a cleaner look.
+- SampleRateComboBox now displays values with 'Hz' suffix, but only the numeric value is used for ffmpeg.
 
 ### Fixed
+* Advanced panel ComboBoxes now properly reflect the current main settings on first open after changes, and persist their values between sessions.
+* Accessibility and scoping issues for override settings objects in Settings.cs.
+* Build errors related to override settings object references.
 * Output path logic in MainWindow and AudioProcessor now ensures files are placed in the correct output directory, not in subfolders named after the file.
 * Documentation conventions strictly followed for all changes.
 * Output extension logic in AudioProcessor now matches PowerShell reference: all re-encoded files are output as .m4b, regardless of input extension.

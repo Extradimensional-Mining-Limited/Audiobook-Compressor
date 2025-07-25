@@ -45,12 +45,20 @@ Triaged all items in the review, categorizing them by Type (Bug/Feature), Effort
 
 7.  **2-pass encoding:**
     a. The application (through ffmpeg) is not actually performing a 2-pass encode when this is selected. This is because ffmpeg requires two separate runs to perform a 2-pass encode, and the current implementation does not handle this correctly.
-    > **Type:** Bug | **Effort:** Easy | **Priority:** High
+    > **Type:** Bug | **Effort:** Hard | **Priority:** High
 
 8.  **VBR and Multi-pass ABR Options
     a. The application does not currently support Variable Bit Rate (VBR) encoding or multi-pass Average Bit Rate (ABR) encoding.
     b. If VBR is selected, the application should default to a safe option if selected with CBR.
     > **Type:** Feature | **Effort:** Hard | **Priority:** Medium
+9.  **Contextual UI for Advanced File Handling:**
+    The UI must provide a clear, intuitive way to handle files that do not match the primary output type (e.g., mono files during a stereo encode).
+    The current design, which lacks this, can lead to user confusion or unexpected behavior.
+    > **Type:** Feature | **Effort:** Medium | **Priority:** High
+10. **Inconsistent "Convert to Stereo" Logic:**
+    a. When a user explicitly selects "Convert mono to stereo," the application lacks a clear rule for what to do if the estimated upmixed bitrate falls below the user-defined stereo copy threshold.
+    b. This can lead to unexpected behavior where a file is re-encoded even though it meets the user's criteria for being "good enough" to copy.
+    > **Type:** Bug | **Effort:** Medium | **Priority:** High
 
 **R. Remedies**
 
@@ -61,7 +69,11 @@ Triaged all items in the review, categorizing them by Type (Bug/Feature), Effort
 5.  Refine all user-facing status messages for better clarity and detail.
 6.  Implement a new setting, "Don't convert mono files to stereo," enabled by default. The processing logic should check this setting and the source file's channel count to prevent unwanted upmixing.
 7.  Implement a proper 2-pass encoding logic that runs ffmpeg twice with the appropriate parameters.
-8.  Add VBR and multi-pass ABR options
+8.  Add VBR and multi-pass VBR.
+    a. Include a VBR option in the bitrate control settings.
+    b. Add logic to handle incompatibilities (e.g., VBR/multi-pass should default to a safe option if selected with CBR).
+9.  The solution is a symmetrical, gated UI where advanced options are contextually revealed based on the user's primary "Mono" or "Stereo" selection. Details in Gemini AB (2025-07-22)
+
 
 ## 2. Error Handling & Robustness
 
@@ -208,7 +220,16 @@ Triaged all items in the review, categorizing them by Type (Bug/Feature), Effort
 -   **Add Debug Logging Option:**
     a. Add a setting to enable more verbose, diagnostic logging for troubleshooting.
     > **Type:** Feature | **Effort:** Easy | **Priority:** High
-
+-   **File Overwrite Behavior:**
+    a. Add a setting to control what happens if a file already exists in the output directory.
+    b. Options should include Skip, Overwrite, and Rename.
+    > **Type:** Feature | **Effort:** Medium | **Priority:** Medium
+-   **Preserve File Dates:**
+    a. Add an option to carry over the original file's creation and modification timestamps to the new file.
+    > **Type:** Feature | **Effort:** Easy | **Priority:** Low
+-   **Shutdown When Complete:**
+    a. Add a checkbox to automatically shut down the computer when the job is finished.
+    > **Type:** Feature | **Effort:** Easy | **Priority:** Low
 ---
 
 This review should be revisited after major changes or before each stable release.

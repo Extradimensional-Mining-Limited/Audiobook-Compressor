@@ -19,7 +19,6 @@ This list is prioritized to address the easiest and most critical items first.
 - [ ] **(Feature)** 8.6: Implement logging to a file for troubleshooting.
 - [ ] **(Feature)** 8.10: Add a setting to enable verbose, diagnostic logging.
 - [ ] **(Bug)** 1C6: Implement a new setting, "Don't convert mono files to stereo," and relevant processing logic.
-- [ ] **(Bug)** 1C7: Implement a new setting, "Use 2-pass encoding," and relevant processing logic.
 
 ### Priority: Medium
 - [X] **(Bug)** 1C2: Validate and handle manual entry in editable ComboBoxes.
@@ -41,6 +40,11 @@ This list is prioritized to address the easiest and most critical items first.
 - [ ] **(Bug)** 3C1: Ensure no synchronous I/O or long operations are blocking the UI thread.
 - [ ] **(Bug)** 5C1: Audit all async operations to ensure they honor the CancellationToken promptly.
 - [ ] **(Bug)** 5C2: Ensure all disposable resources (like file streams) are properly cleaned up, even if exceptions occur.
+- [ ] **(Feature)** 9C: Implement a dynamic panel whose visibility and content are controlled by the primary "Mono/Stereo" output setting.							
+                        In place for the current "Don't convert mono to stereo." checkbox, in Mono mode, show a checkbox for "Advanced stereo file handling" and when checked show a row of radio buttons (Keep as stereo, Convert to mono, Advanced...) with Convert... selected by default.  
+                        In the same place, in Stereo mode, show a checkbox for "Advanced mono file handling" and when checked show a row of radio buttons (Keep as mono, Re-encode to mono, Advanced...) with Keep... selected by default.  
+                        Advanced unlocks an otherwise greyed out additional row of standard main compression settings (Bitrate, Sample rate, Channels, etc.) that are only enabled when the advanced options are selected.)
+                        Obviously, all should be wired to the corresponding processing logic.
 
 ### Priority: Medium
 - [ ] **(Bug)** 4C1: Add error handling and user notifications for failures in saving/loading settings.
@@ -63,6 +67,7 @@ This list is prioritized to address the easiest and most critical items first.
 - [ ] **(Feature)** 8.1: Add unit and integration tests for core logic in the `AudioProcessor`.
 - [ ] **(Feature)** 8.8: Add VBR and multi-pass ABR options to the UI and processing logic.
 - [ ] **(Feature)** 1C8: Implement VBR and Multi-pass for ABR and VBR encoding options.
+- [ ] **(Bug)** 1C7: Implement a new setting, "Use 2-pass encoding," and relevant processing logic.
 
 ### Priority: Low
 - [ ] **(Feature)** 6C2: Add explicit support for screen readers and accessibility tools.

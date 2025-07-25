@@ -1,14 +1,14 @@
 ﻿/*
     Filename: App.xaml.cs
-    Last Updated: 2025-07-17 03:10 CEST
-    Version: 1.0.3
+    Last Updated: 2025-07-25 03:32
+    Version: 1.2.0
     State: Stable
     Signed: User
-    
+
     Synopsis:
-    Application entry point code-behind.
-    Fixed v1.0.2 broken dependency validation that prevented app from starting.
-    Now properly displays missing tools with correct path information.
+    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
+    - Documentation and changelog discipline enforced for release.
+    - No code changes since last version except header and documentation updates.
 */
 
 using System.Configuration;

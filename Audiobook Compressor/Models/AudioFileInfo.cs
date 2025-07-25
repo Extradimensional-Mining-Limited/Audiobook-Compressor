@@ -1,12 +1,14 @@
 /*
     Filename: AudioFileInfo.cs
-    Last Updated: 2025-07-17 07:15 CEST
-    Version: 1.1.0
+    Last Updated: 2025-07-25 03:32
+    Version: 1.2.0
     State: Stable
     Signed: User
-    
+
     Synopsis:
-    Audio file model with complete metadata support.
+    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
+    - Documentation and changelog discipline enforced for release.
+    - No code changes since last version except header and documentation updates.
 */
 
 using System.IO;

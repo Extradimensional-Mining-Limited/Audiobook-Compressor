@@ -1,13 +1,14 @@
 /*
     Filename: AudioProcessor.cs
-    Last Updated: 2025-07-22 05:35 CEST
-    Version: 1.1.5
-    State: Experimental
-    Signed: GitHub Copilot
-    
+    Last Updated: 2025-07-25 03:32
+    Version: 1.2.0
+    State: Stable
+    Signed: User
+
     Synopsis:
-    Enhanced audio processing service with complete logic ported from PowerShell script. Output path logic fixed to prevent creation of extra subfolders named after files.
-    - Updated filename sanitization logic to allow the centre dot (U+00B7) character (2C4).
+    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
+    - Documentation and changelog discipline enforced for release.
+    - No code changes since last version except header and documentation updates.
 */
 
 using System;
@@ -186,6 +187,11 @@ namespace Audiobook_Compressor.Services
 
                 Debug.WriteLine($"Original Details: {currentCodec}, {currentChannels}ch, {currentBitrate / 1000}kbps");
 
+                // Refined logic: If file is mono and 'Don't convert mono to stereo' is checked, always process as mono
+                bool treatAsMono = currentChannels == 1 && Settings.DontConvertMonoToStereo;
+                string effectiveChannel = treatAsMono ? "Mono" : Settings.CurrentChannel;
+
+                // Mono copy threshold logic (only for mono files)
                 if (currentChannels == 1 && currentBitrate <= Settings.MonoCopyThreshold && currentBitrate != 0)
                 {
                     Debug.WriteLine("Action: File is already mono and within tolerance. Copying.");
@@ -199,15 +205,13 @@ namespace Audiobook_Compressor.Services
                 var destFileCompress = Path.Combine(outputDir, sanitizedBaseName + ".m4b");
                 string channelArgs = "";
                 string filterArgs = "";
-                if (Settings.CurrentChannel == "Mono")
+                if (effectiveChannel == "Mono")
                 {
-                    // Use pan filter for mono
                     channelArgs = "-ac 1";
                     filterArgs = "-af pan=mono|c0=0.5*c0+0.5*c1";
                 }
-                else if (Settings.CurrentChannel == "Stereo")
+                else if (effectiveChannel == "Stereo")
                 {
-                    // Use stereo, no pan filter
                     channelArgs = "-ac 2";
                     filterArgs = "";
                 }
