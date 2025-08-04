@@ -1,12 +1,12 @@
 /*
     Filename: Settings.cs
     Last Updated: TIMESTAMP_ERROR
-    Version: 1.2.A
+    Version: 1.2.B
     State: Experimental
-    Signed: Claude
+    Signed: Advisor
 
     Synopsis:
-    Refactored Settings.cs to implement hierarchical data model with CompressionSettings, ModeSettings, and ApplicationSettings classes as specified in Focus 6.2.0.md.
+    Enhanced data model with SelectedAction property in ModeSettings to support radio button state persistence per Focus 7.0.0 directive.
 */
 
 using System;
@@ -80,6 +80,7 @@ namespace Audiobook_Compressor.Models
     {
         private CompressionSettings _main = new();
         private CompressionSettings _advancedOverride = new();
+        private string _selectedAction = "Convert";
 
         public CompressionSettings Main
         {
@@ -91,6 +92,15 @@ namespace Audiobook_Compressor.Models
         {
             get => _advancedOverride;
             set { _advancedOverride = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Selected action for this mode - valid values: "Copy", "Convert", "Advanced"
+        /// </summary>
+        public string SelectedAction
+        {
+            get => _selectedAction;
+            set { _selectedAction = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
