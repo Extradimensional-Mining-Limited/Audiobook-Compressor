@@ -1,15 +1,12 @@
-﻿/*
+/*
     Filename: MainWindow.xaml.cs
-    Last Updated: 2025-07-25 03:32
-    Version: 1.2.0
-    State: Stable
-    Signed: User
+    Last Updated: 2025-08-02 07:01
+    Version: 1.2.A
+    State: Experimental
+    Signed: Claude
 
     Synopsis:
-    - Finalized UI vertical spacing and layout per Praxis directive (Focus 2.2.6.md).
-    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
-    - Documentation and changelog discipline enforced for release.
-    - No code changes since last version except header and documentation updates.
+    Complete hierarchical settings system implementation with dynamic context switching, independent persistence for all four settings contexts, and advanced override panel binding per Focus 6.2.0.md directive.
 */
 
 using System;
@@ -63,11 +60,7 @@ namespace Audiobook_Compressor
 
         private bool _sourceCollisionContinue = false;
         private bool _outputCollisionContinue = false;
-
-        // State tracking for advanced settings
-        private bool mainSettingsHaveChangedThisSession = false;
-        private bool advancedStereoOpenedThisSession = false;
-        private bool advancedMonoOpenedThisSession = false;
+        private bool _isUpdatingFromSettings = false;
 
         public MainWindow()
         {
@@ -84,6 +77,9 @@ namespace Audiobook_Compressor
 
             // Initialize ComboBox items
             InitializeComboBoxes();
+            
+            // Restore UI state from loaded settings - moved after InitializeComboBoxes
+            RestoreUIFromSettings();
 
             // Default settings
             SourceBrowseButton.Click += (s, e) =>
@@ -170,105 +166,44 @@ namespace Audiobook_Compressor
             this.Closing += (s, e) => SaveUserSettings();
 
             // Contextual panel visibility logic
-            ChannelsComboBox.SelectionChanged += (s, e) =>
-            {
-                var selected = ChannelsComboBox.SelectedItem?.ToString();
-                MonoModeOptionsPanel.Visibility = selected == "Mono" ? Visibility.Visible : Visibility.Collapsed;
-                StereoModeOptionsPanel.Visibility = selected == "Stereo" ? Visibility.Visible : Visibility.Collapsed;
-            };
-            MonoModeOptionsPanel.Visibility = (ChannelsComboBox.SelectedItem?.ToString() ?? "Mono") == "Mono" ? Visibility.Visible : Visibility.Collapsed;
-            StereoModeOptionsPanel.Visibility = (ChannelsComboBox.SelectedItem?.ToString() ?? "Mono") == "Stereo" ? Visibility.Visible : Visibility.Collapsed;
+            ChannelsComboBox.SelectionChanged += Channels_SelectionChanged;
 
-            // Advanced override panel visibility logic
-            MonoAdvancedRadio.Checked += (s, e) => AdvancedStereoOverridePanel.Visibility = Visibility.Visible;
-            MonoAdvancedRadio.Unchecked += (s, e) => AdvancedStereoOverridePanel.Visibility = Visibility.Collapsed;
-            MonoCopyStereoRadio.Checked += (s, e) => AdvancedStereoOverridePanel.Visibility = Visibility.Collapsed;
-            MonoConvertStereoRadio.Checked += (s, e) => AdvancedStereoOverridePanel.Visibility = Visibility.Collapsed;
-
-            StereoAdvancedRadio.Checked += (s, e) => AdvancedMonoOverridePanel.Visibility = Visibility.Visible;
-            StereoAdvancedRadio.Unchecked += (s, e) => AdvancedMonoOverridePanel.Visibility = Visibility.Collapsed;
-            StereoCopyMonoRadio.Checked += (s, e) => AdvancedMonoOverridePanel.Visibility = Visibility.Collapsed;
-            StereoConvertMonoRadio.Checked += (s, e) => AdvancedMonoOverridePanel.Visibility = Visibility.Collapsed;
-            
-            // Track changes to main compression settings
-            ChannelsComboBox.SelectionChanged += (s, e) =>
-            {
-                var selected = ChannelsComboBox.SelectedItem?.ToString();
-                MonoModeOptionsPanel.Visibility = selected == "Mono" ? Visibility.Visible : Visibility.Collapsed;
-                StereoModeOptionsPanel.Visibility = selected == "Stereo" ? Visibility.Visible : Visibility.Collapsed;
-                mainSettingsHaveChangedThisSession = true;
-            };
-            BitrateComboBox.SelectionChanged += (s, e) => mainSettingsHaveChangedThisSession = true;
-            BitrateComboBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) mainSettingsHaveChangedThisSession = true; };
-            BitrateComboBox.LostFocus += (s, e) => mainSettingsHaveChangedThisSession = true;
-            SampleRateComboBox.SelectionChanged += (s, e) => mainSettingsHaveChangedThisSession = true;
-            SampleRateComboBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) mainSettingsHaveChangedThisSession = true; };
-            SampleRateComboBox.LostFocus += (s, e) => mainSettingsHaveChangedThisSession = true;
-            ThresholdComboBox.SelectionChanged += (s, e) => mainSettingsHaveChangedThisSession = true;
-            ThresholdComboBox.KeyDown += (s, e) => { if (e.Key == Key.Enter) mainSettingsHaveChangedThisSession = true; };
-            ThresholdComboBox.LostFocus += (s, e) => mainSettingsHaveChangedThisSession = true;
-            BitrateControlComboBox.SelectionChanged += (s, e) => mainSettingsHaveChangedThisSession = true;
-            PassesComboBox.SelectionChanged += (s, e) => mainSettingsHaveChangedThisSession = true;
-
-            // Advanced panel one-time sync logic
+            // Advanced override panel visibility logic with settings binding
             MonoAdvancedRadio.Checked += (s, e) => {
-                if (!advancedStereoOpenedThisSession && mainSettingsHaveChangedThisSession)
-                {
-                    AdvancedStereoChannelsComboBox.SelectedItem = ChannelsComboBox.SelectedItem;
-                    AdvancedStereoBitrateComboBox.Text = BitrateComboBox.Text;
-                    AdvancedStereoSampleRateComboBox.SelectedItem = SampleRateComboBox.SelectedItem;
-                    AdvancedStereoThresholdComboBox.Text = ThresholdComboBox.Text;
-                    AdvancedStereoBitrateControlComboBox.SelectedItem = BitrateControlComboBox.SelectedItem;
-                    AdvancedStereoPassesComboBox.SelectedIndex = PassesComboBox.SelectedIndex;
-                    advancedStereoOpenedThisSession = true;
-                }
+                Settings.Current.IsAdvancedMode = true;
+                AdvancedStereoOverridePanel.Visibility = Visibility.Visible;
+                // Only rebind on first open after load - remove automatic rebinding
             };
+            MonoAdvancedRadio.Unchecked += (s, e) => {
+                Settings.Current.IsAdvancedMode = false;
+                AdvancedStereoOverridePanel.Visibility = Visibility.Collapsed;
+            };
+            MonoCopyStereoRadio.Checked += (s, e) => {
+                Settings.Current.IsAdvancedMode = false;
+                AdvancedStereoOverridePanel.Visibility = Visibility.Collapsed;
+            };
+            MonoConvertStereoRadio.Checked += (s, e) => {
+                Settings.Current.IsAdvancedMode = false;
+                AdvancedStereoOverridePanel.Visibility = Visibility.Collapsed;
+            };
+
             StereoAdvancedRadio.Checked += (s, e) => {
-                if (!advancedMonoOpenedThisSession && mainSettingsHaveChangedThisSession)
-                {
-                    AdvancedMonoChannelsComboBox.SelectedItem = ChannelsComboBox.SelectedItem;
-                    AdvancedMonoBitrateComboBox.Text = BitrateComboBox.Text;
-                    AdvancedMonoSampleRateComboBox.SelectedItem = SampleRateComboBox.SelectedItem;
-                    AdvancedMonoThresholdComboBox.Text = ThresholdComboBox.Text;
-                    AdvancedMonoBitrateControlComboBox.SelectedItem = BitrateControlComboBox.SelectedItem;
-                    AdvancedMonoPassesComboBox.SelectedIndex = PassesComboBox.SelectedIndex;
-                    advancedMonoOpenedThisSession = true;
-                }
+                Settings.Current.IsAdvancedMode = true;
+                AdvancedMonoOverridePanel.Visibility = Visibility.Visible;
+                // Only rebind on first open after load - remove automatic rebinding
             };
-
-            // Bind advanced panel controls to settings objects
-            AdvancedStereoChannelsComboBox.SelectionChanged += (s, e) => Settings.AdvancedStereoOverrideSettings.Channel = AdvancedStereoChannelsComboBox.SelectedItem?.ToString() ?? Settings.DefaultChannel;
-            AdvancedStereoBitrateComboBox.SelectionChanged += (s, e) => Settings.AdvancedStereoOverrideSettings.Bitrate = AdvancedStereoBitrateComboBox.Text;
-            AdvancedStereoBitrateComboBox.LostFocus += (s, e) => Settings.AdvancedStereoOverrideSettings.Bitrate = AdvancedStereoBitrateComboBox.Text;
-            AdvancedStereoSampleRateComboBox.SelectionChanged += (s, e) => Settings.AdvancedStereoOverrideSettings.SampleRate = AdvancedStereoSampleRateComboBox.SelectedItem?.ToString() ?? Settings.FormatSampleRate(Settings.DefaultSampleRate);
-            AdvancedStereoThresholdComboBox.SelectionChanged += (s, e) => Settings.AdvancedStereoOverrideSettings.Threshold = AdvancedStereoThresholdComboBox.Text;
-            AdvancedStereoThresholdComboBox.LostFocus += (s, e) => Settings.AdvancedStereoOverrideSettings.Threshold = AdvancedStereoThresholdComboBox.Text;
-            AdvancedStereoBitrateControlComboBox.SelectionChanged += (s, e) => Settings.AdvancedStereoOverrideSettings.BitrateControl = AdvancedStereoBitrateControlComboBox.SelectedItem?.ToString() ?? Settings.DefaultBitrateControl;
-            AdvancedStereoPassesComboBox.SelectionChanged += (s, e) => Settings.AdvancedStereoOverrideSettings.PassesIndex = AdvancedStereoPassesComboBox.SelectedIndex;
-
-            AdvancedMonoChannelsComboBox.SelectionChanged += (s, e) => Settings.AdvancedMonoOverrideSettings.Channel = AdvancedMonoChannelsComboBox.SelectedItem?.ToString() ?? Settings.DefaultChannel;
-            AdvancedMonoBitrateComboBox.SelectionChanged += (s, e) => Settings.AdvancedMonoOverrideSettings.Bitrate = AdvancedMonoBitrateComboBox.Text;
-            AdvancedMonoBitrateComboBox.LostFocus += (s, e) => Settings.AdvancedMonoOverrideSettings.Bitrate = AdvancedMonoBitrateComboBox.Text;
-            AdvancedMonoSampleRateComboBox.SelectionChanged += (s, e) => Settings.AdvancedMonoOverrideSettings.SampleRate = AdvancedMonoSampleRateComboBox.SelectedItem?.ToString() ?? Settings.FormatSampleRate(Settings.DefaultSampleRate);
-            AdvancedMonoThresholdComboBox.SelectionChanged += (s, e) => Settings.AdvancedMonoOverrideSettings.Threshold = AdvancedMonoThresholdComboBox.Text;
-            AdvancedMonoThresholdComboBox.LostFocus += (s, e) => Settings.AdvancedMonoOverrideSettings.Threshold = AdvancedMonoThresholdComboBox.Text;
-            AdvancedMonoBitrateControlComboBox.SelectionChanged += (s, e) => Settings.AdvancedMonoOverrideSettings.BitrateControl = AdvancedMonoBitrateControlComboBox.SelectedItem?.ToString() ?? Settings.DefaultBitrateControl;
-            AdvancedMonoPassesComboBox.SelectionChanged += (s, e) => Settings.AdvancedMonoOverrideSettings.PassesIndex = AdvancedMonoPassesComboBox.SelectedIndex;
-
-            // On load, set advanced panel controls from settings objects
-            AdvancedStereoChannelsComboBox.SelectedItem = Settings.AdvancedStereoOverrideSettings.Channel;
-            AdvancedStereoBitrateComboBox.Text = Settings.AdvancedStereoOverrideSettings.Bitrate;
-            AdvancedStereoSampleRateComboBox.SelectedItem = Settings.AdvancedStereoOverrideSettings.SampleRate;
-            AdvancedStereoThresholdComboBox.Text = Settings.AdvancedStereoOverrideSettings.Threshold;
-            AdvancedStereoBitrateControlComboBox.SelectedItem = Settings.AdvancedStereoOverrideSettings.BitrateControl;
-            AdvancedStereoPassesComboBox.SelectedIndex = Settings.AdvancedStereoOverrideSettings.PassesIndex;
-
-            AdvancedMonoChannelsComboBox.SelectedItem = Settings.AdvancedMonoOverrideSettings.Channel;
-            AdvancedMonoBitrateComboBox.Text = Settings.AdvancedMonoOverrideSettings.Bitrate;
-            AdvancedMonoSampleRateComboBox.SelectedItem = Settings.AdvancedMonoOverrideSettings.SampleRate;
-            AdvancedMonoThresholdComboBox.Text = Settings.AdvancedMonoOverrideSettings.Threshold;
-            AdvancedMonoBitrateControlComboBox.SelectedItem = Settings.AdvancedMonoOverrideSettings.BitrateControl;
-            AdvancedMonoPassesComboBox.SelectedIndex = Settings.AdvancedMonoOverrideSettings.PassesIndex;
+            StereoAdvancedRadio.Unchecked += (s, e) => {
+                Settings.Current.IsAdvancedMode = false;
+                AdvancedMonoOverridePanel.Visibility = Visibility.Collapsed;
+            };
+            StereoCopyMonoRadio.Checked += (s, e) => {
+                Settings.Current.IsAdvancedMode = false;
+                AdvancedMonoOverridePanel.Visibility = Visibility.Collapsed;
+            };
+            StereoConvertMonoRadio.Checked += (s, e) => {
+                Settings.Current.IsAdvancedMode = false;
+                AdvancedMonoOverridePanel.Visibility = Visibility.Collapsed;
+            };
         }
 
         private static string NormalizeBitrateInput(string input)
@@ -294,18 +229,90 @@ namespace Audiobook_Compressor
             // Setup bitrate options
             BitrateComboBox.ItemsSource = Settings.BitrateOptions;
             BitrateComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultBitrate);
-            BitrateComboBox.SelectionChanged += (s, e) => 
+
+            // Setup sample rate options - FIX: Missing ItemsSource
+            SampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
+            SampleRateComboBox.SelectedItem = $"{Settings.DefaultSampleRate} Hz";
+            SampleRateComboBox.SelectionChanged += SampleRate_SelectionChanged;
+
+            // Setup threshold options
+            ThresholdComboBox.ItemsSource = Settings.BitrateOptions;
+            ThresholdComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
+
+            // Setup bitrate control options
+            BitrateControlComboBox.ItemsSource = new[] { "ABR", "CBR" };
+            BitrateControlComboBox.SelectedItem = Settings.DefaultBitrateControl;
+            BitrateControlComboBox.SelectionChanged += BitrateControl_SelectionChanged;
+
+            // Setup passes options (already defined in XAML)
+            // PassesComboBox items are defined in XAML
+
+            // FIX: Initialize advanced panel ComboBoxes ItemsSource
+            // Advanced Stereo Override ComboBoxes (for Mono mode advanced settings)
+            AdvancedStereoChannelsComboBox.ItemsSource = Settings.ChannelOptions;
+            AdvancedStereoChannelsComboBox.SelectedItem = Settings.DefaultChannel;
+            AdvancedStereoBitrateComboBox.ItemsSource = Settings.BitrateOptions;
+            AdvancedStereoBitrateComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultBitrate);
+            AdvancedStereoSampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
+            AdvancedStereoSampleRateComboBox.SelectedItem = Settings.FormatSampleRate(Settings.DefaultSampleRate);
+            AdvancedStereoThresholdComboBox.ItemsSource = Settings.BitrateOptions;
+            AdvancedStereoThresholdComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
+            AdvancedStereoBitrateControlComboBox.ItemsSource = new[] { "ABR", "CBR" };
+            AdvancedStereoBitrateControlComboBox.SelectedItem = Settings.DefaultBitrateControl;
+            AdvancedStereoPassesComboBox.SelectedIndex = 0;
+
+            // Advanced Mono Override ComboBoxes (for Stereo mode advanced settings)
+            AdvancedMonoChannelsComboBox.ItemsSource = Settings.ChannelOptions;
+            AdvancedMonoChannelsComboBox.SelectedItem = Settings.DefaultChannel;
+            AdvancedMonoBitrateComboBox.ItemsSource = Settings.BitrateOptions;
+            AdvancedMonoBitrateComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultBitrate);
+            AdvancedMonoSampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
+            AdvancedMonoSampleRateComboBox.SelectedItem = Settings.FormatSampleRate(Settings.DefaultSampleRate);
+            AdvancedMonoThresholdComboBox.ItemsSource = Settings.BitrateOptions;
+            AdvancedMonoThresholdComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
+            AdvancedMonoBitrateControlComboBox.ItemsSource = new[] { "ABR", "CBR" };
+            AdvancedMonoBitrateControlComboBox.SelectedItem = Settings.DefaultBitrateControl;
+            AdvancedMonoPassesComboBox.SelectedIndex = 0;
+
+            // Setup event handlers for main ComboBoxes
+            ChannelsComboBox.SelectionChanged += (s, e) =>
             {
+                if (s is System.Windows.Controls.ComboBox comboBox)
+                {
+                    if (_isUpdatingFromSettings) return;
+                    
+                    var selected = comboBox.SelectedItem?.ToString();
+                    MonoModeOptionsPanel.Visibility = selected == "Mono" ? Visibility.Visible : Visibility.Collapsed;
+                    StereoModeOptionsPanel.Visibility = selected == "Stereo" ? Visibility.Visible : Visibility.Collapsed;
+                }
+            };
+            BitrateComboBox.SelectionChanged += (s, e) =>
+            {
+                if (_isUpdatingFromSettings) return;
+                
                 if (s is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string bitrate)
                 {
                     var normalized = NormalizeBitrateInput(bitrate);
                     if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
-                        Settings.TargetBitrate = bps;
+                        // CRITICAL FIX: ALWAYS update MAIN settings, regardless of IsAdvancedMode state
+                        // The main ComboBox should NEVER update advanced settings
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        var oldValue = mainSettings.TargetBitrate;
+                        
+                        // REMOVE: Debugging breakpoint
+                        // System.Diagnostics.Debugger.Break(); // REMOVED: Main bitrate update debugging
+                        
+                        mainSettings.TargetBitrate = Settings.FormatBitrate(bps);
                         comboBox.Text = Settings.FormatBitrate(bps);
+                        
+                        // Debug logging to verify correct behavior
+                        System.Diagnostics.Debug.WriteLine($"MAIN BitrateComboBox: {oldValue} → {mainSettings.TargetBitrate} (Mode: {Settings.Current.CurrentMode}, Advanced: {Settings.Current.IsAdvancedMode})");
+                        
                         UpdateSettingsSummary();
                         // Warn only if threshold is lower than target bitrate
-                        if (Settings.MonoCopyThreshold < Settings.TargetBitrate)
+                        if (Settings.TryParseBitrate(mainSettings.ConversionThreshold, out int thresholdBps) && thresholdBps < bps)
                         {
                             System.Windows.MessageBox.Show("Warning: Mono copy threshold is lower than target bitrate. Mono files with bitrate below the threshold will be copied instead of re-encoded.", "Bitrate/Threshold Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                         }
@@ -321,10 +328,15 @@ namespace Audiobook_Compressor
             {
                 if (e.Key == Key.Enter && s is System.Windows.Controls.ComboBox comboBox)
                 {
+                    if (_isUpdatingFromSettings) return;
+                    
                     var normalized = NormalizeBitrateInput(comboBox.Text);
                     if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
-                        Settings.TargetBitrate = bps;
+                        // Update the MAIN settings for current mode (not GetActiveSettings)
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        mainSettings.TargetBitrate = Settings.FormatBitrate(bps);
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
                     }
@@ -340,32 +352,56 @@ namespace Audiobook_Compressor
             {
                 if (s is System.Windows.Controls.ComboBox comboBox)
                 {
+                    if (_isUpdatingFromSettings) return;
+                    
                     var normalized = NormalizeBitrateInput(comboBox.Text);
                     if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
-                        Settings.TargetBitrate = bps;
+                        // Update the MAIN settings for current mode (not GetActiveSettings)
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        mainSettings.TargetBitrate = Settings.FormatBitrate(bps);
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
                     }
                     else
                     {
                         System.Windows.MessageBox.Show("Please enter a bitrate between 32k and 192k.", "Invalid Bitrate", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultBitrate);
+                        // Use main settings for fallback too
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        comboBox.Text = mainSettings?.TargetBitrate ?? Settings.FormatBitrate(Settings.DefaultBitrate);
                     }
                 }
             };
-
-            // Setup sample rate options (display with Hz, store as int)
-            SampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
-            SampleRateComboBox.SelectedItem = $"{Settings.DefaultSampleRate} Hz";
-            SampleRateComboBox.SelectionChanged += SampleRate_SelectionChanged;
+            SampleRateComboBox.SelectionChanged += (s, e) =>
+            {
+                if (_isUpdatingFromSettings) return;
+                
+                if (s is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string rate)
+                {
+                    if (Settings.TryParseSampleRate(rate, out int sampleRate))
+                    {
+                        // Update MAIN settings for current mode (not GetActiveSettings which could be advanced)
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        mainSettings.SampleRate = Settings.FormatSampleRate(sampleRate);
+                        UpdateSettingsSummary();
+                    }
+                }
+            };
             SampleRateComboBox.KeyDown += (s, e) =>
             {
                 if (e.Key == Key.Enter && s is System.Windows.Controls.ComboBox comboBox)
                 {
+                    if (_isUpdatingFromSettings) return;
+                    
                     if (Settings.TryParseSampleRate(comboBox.Text, out int sr) && (sr == 22050 || sr == 44100 || sr == 48000))
                     {
-                        Settings.TargetSampleRate = sr;
+                        // Update MAIN settings for current mode (not GetActiveSettings)
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        mainSettings.SampleRate = Settings.FormatSampleRate(sr);
                         comboBox.Text = Settings.FormatSampleRate(sr);
                         UpdateSettingsSummary();
                     }
@@ -381,9 +417,14 @@ namespace Audiobook_Compressor
             {
                 if (s is System.Windows.Controls.ComboBox comboBox)
                 {
+                    if (_isUpdatingFromSettings) return;
+                    
                     if (Settings.TryParseSampleRate(comboBox.Text, out int sr) && (sr == 22050 || sr == 44100 || sr == 48000))
                     {
-                        Settings.TargetSampleRate = sr;
+                        // Update MAIN settings for current mode (not GetActiveSettings)
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        mainSettings.SampleRate = Settings.FormatSampleRate(sr);
                         comboBox.Text = Settings.FormatSampleRate(sr);
                         UpdateSettingsSummary();
                     }
@@ -394,24 +435,26 @@ namespace Audiobook_Compressor
                     }
                 }
             };
-
-            // Setup threshold options
-            ThresholdComboBox.ItemsSource = Settings.BitrateOptions;
-            ThresholdComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
             ThresholdComboBox.SelectionChanged += (s, e) =>
             {
+                if (_isUpdatingFromSettings) return;
+                
                 if (s is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string threshold)
                 {
                     var normalized = NormalizeBitrateInput(threshold);
                     if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
                     {
-                        Settings.MonoCopyThreshold = bps;
+                        // Update MAIN settings for current mode (not GetActiveSettings)
+                        var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                            Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                        mainSettings.ConversionThreshold = Settings.FormatBitrate(bps);
                         comboBox.Text = Settings.FormatBitrate(bps);
                         UpdateSettingsSummary();
-                        // Warn only if threshold is lower than target bitrate
-                        if (Settings.MonoCopyThreshold < Settings.TargetBitrate)
+                        
+                        // Warn if threshold is lower than target bitrate
+                        if (Settings.TryParseBitrate(mainSettings.TargetBitrate, out int targetBps) && bps < targetBps)
                         {
-                            System.Windows.MessageBox.Show("Warning: Mono copy threshold is lower than target bitrate. Mono files with bitrate below the threshold will be copied instead of re-encoded.", "Bitrate/Threshold Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            System.Windows.MessageBox.Show("Warning: Conversion threshold is lower than target bitrate. Files below the threshold will be copied instead of re-encoded.", "Bitrate/Threshold Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                         }
                     }
                     else
@@ -421,94 +464,195 @@ namespace Audiobook_Compressor
                     }
                 }
             };
-            ThresholdComboBox.KeyDown += (s, e) =>
+            ThresholdComboBox.KeyDown += (s, e) => {
+                if (e.Key == Key.Enter) { }
+            };
+            ThresholdComboBox.LostFocus += (s, e) => { };
+            BitrateControlComboBox.SelectionChanged += (s, e) =>
             {
-                if (e.Key == Key.Enter && s is System.Windows.Controls.ComboBox comboBox)
+                if (_isUpdatingFromSettings) return;
+                
+                if (s is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string mode)
                 {
-                    var normalized = NormalizeBitrateInput(comboBox.Text);
-                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
+                    // Update MAIN settings for current mode (not GetActiveSettings which could be advanced)
+                    var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                        Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                    mainSettings.EncodingType = mode;
+
+                    if (mode == "CBR")
                     {
-                        Settings.MonoCopyThreshold = bps;
-                        comboBox.Text = Settings.FormatBitrate(bps);
-                        UpdateSettingsSummary();
+                        PassesComboBox.SelectedIndex = 0;
+                        PassesComboBox.IsEnabled = false;
+                        mainSettings.PassMode = "1-Pass";
                     }
                     else
                     {
-                        System.Windows.MessageBox.Show("Please enter a threshold between 32k and 192k.", "Invalid Threshold", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
+                        PassesComboBox.IsEnabled = true;
                     }
-                    e.Handled = true;
+                    UpdateSettingsSummary();
                 }
             };
-            ThresholdComboBox.LostFocus += (s, e) =>
+            PassesComboBox.SelectionChanged += (s, e) =>
             {
-                if (s is System.Windows.Controls.ComboBox comboBox)
+                if (_isUpdatingFromSettings) return;
+                
+                if (s is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is ComboBoxItem item)
                 {
-                    var normalized = NormalizeBitrateInput(comboBox.Text);
-                    if (Settings.TryParseBitrate(normalized, out int bps) && bps >= 32000 && bps <= 192000)
-                    {
-                        Settings.MonoCopyThreshold = bps;
-                        comboBox.Text = Settings.FormatBitrate(bps);
-                        UpdateSettingsSummary();
-                    }
-                    else
-                    {
-                        System.Windows.MessageBox.Show("Please enter a threshold between 32k and 192k.", "Invalid Threshold", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        comboBox.Text = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
-                    }
+                    // Update MAIN settings for current mode (not GetActiveSettings)
+                    var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                        Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                    var passMode = item.Content?.ToString() ?? "1-Pass";
+                    mainSettings.PassMode = passMode;
+                    UpdateSettingsSummary();
                 }
             };
-
-            // Setup bitrate control options
-            BitrateControlComboBox.ItemsSource = new[] { "ABR", "CBR" };
-            BitrateControlComboBox.SelectedItem = Settings.DefaultBitrateControl;
-            BitrateControlComboBox.SelectionChanged += BitrateControl_SelectionChanged;
-
-            // Setup passes options
-            PassesComboBox.SelectionChanged += (s, e) => UpdateSettingsSummary();
-
-            // Initialize advanced panel ComboBoxes
-            AdvancedStereoChannelsComboBox.ItemsSource = Settings.ChannelOptions;
-            AdvancedStereoChannelsComboBox.SelectedItem = Settings.DefaultChannel;
-            AdvancedStereoBitrateComboBox.ItemsSource = Settings.BitrateOptions;
-            AdvancedStereoBitrateComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultBitrate);
-            AdvancedStereoSampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
-            AdvancedStereoSampleRateComboBox.SelectedItem = Settings.FormatSampleRate(Settings.DefaultSampleRate);
-            AdvancedStereoThresholdComboBox.ItemsSource = Settings.BitrateOptions;
-            AdvancedStereoThresholdComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
-            AdvancedStereoBitrateControlComboBox.ItemsSource = new[] { "ABR", "CBR" };
-            AdvancedStereoBitrateControlComboBox.SelectedItem = Settings.DefaultBitrateControl;
-            AdvancedStereoPassesComboBox.SelectedIndex = 0;
-
-            AdvancedMonoChannelsComboBox.ItemsSource = Settings.ChannelOptions;
-            AdvancedMonoChannelsComboBox.SelectedItem = Settings.DefaultChannel;
-            AdvancedMonoBitrateComboBox.ItemsSource = Settings.BitrateOptions;
-            AdvancedMonoBitrateComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultBitrate);
-            AdvancedMonoSampleRateComboBox.ItemsSource = Settings.SampleRateOptions;
-            AdvancedMonoSampleRateComboBox.SelectedItem = Settings.FormatSampleRate(Settings.DefaultSampleRate);
-            AdvancedMonoThresholdComboBox.ItemsSource = Settings.BitrateOptions;
-            AdvancedMonoThresholdComboBox.SelectedItem = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
-            AdvancedMonoBitrateControlComboBox.ItemsSource = new[] { "ABR", "CBR" };
-            AdvancedMonoBitrateControlComboBox.SelectedItem = Settings.DefaultBitrateControl;
-            AdvancedMonoPassesComboBox.SelectedIndex = 0;
+            
+            // Setup advanced panel ComboBox event handlers
+            
+            // Advanced Stereo Override ComboBox handlers (for Mono mode advanced settings)
+            AdvancedStereoChannelsComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb && cb.SelectedItem is string value)
+                    Settings.Current.MonoMode.AdvancedOverride.ChannelMode = value;
+            };
+            
+            AdvancedStereoBitrateComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                {
+                    // BREAKPOINT 2: Set breakpoint here to trace advanced bitrate changes
+                    // System.Diagnostics.Debugger.Break(); // REMOVED: Advanced bitrate update debugging
+                    Settings.Current.MonoMode.AdvancedOverride.TargetBitrate = cb.Text;
+                }
+            };
+            AdvancedStereoBitrateComboBox.LostFocus += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.MonoMode.AdvancedOverride.TargetBitrate = cb.Text;
+            };
+            
+            AdvancedStereoSampleRateComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb && cb.SelectedItem is string value)
+                    Settings.Current.MonoMode.AdvancedOverride.SampleRate = value;
+            };
+            
+            AdvancedStereoThresholdComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.MonoMode.AdvancedOverride.ConversionThreshold = cb.Text;
+            };
+            AdvancedStereoThresholdComboBox.LostFocus += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.MonoMode.AdvancedOverride.ConversionThreshold = cb.Text;
+            };
+            
+            AdvancedStereoBitrateControlComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb && cb.SelectedItem is string value)
+                    Settings.Current.MonoMode.AdvancedOverride.EncodingType = value;
+            };
+            
+            AdvancedStereoPassesComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.MonoMode.AdvancedOverride.PassMode = cb.SelectedIndex == 1 ? "2-Pass" : "1-Pass";
+            };
+            
+            // Advanced Mono Override ComboBox handlers (for Stereo mode advanced settings)
+            AdvancedMonoChannelsComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb && cb.SelectedItem is string value)
+                    Settings.Current.StereoMode.AdvancedOverride.ChannelMode = value;
+            };
+            
+            AdvancedMonoBitrateComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.StereoMode.AdvancedOverride.TargetBitrate = cb.Text;
+            };
+            AdvancedMonoBitrateComboBox.LostFocus += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.StereoMode.AdvancedOverride.TargetBitrate = cb.Text;
+            };
+            
+            AdvancedMonoSampleRateComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb && cb.SelectedItem is string value)
+                    Settings.Current.StereoMode.AdvancedOverride.SampleRate = value;
+            };
+            
+            AdvancedMonoThresholdComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.StereoMode.AdvancedOverride.ConversionThreshold = cb.Text;
+            };
+            AdvancedMonoThresholdComboBox.LostFocus += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.StereoMode.AdvancedOverride.ConversionThreshold = cb.Text;
+            };
+            
+            AdvancedMonoBitrateControlComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb && cb.SelectedItem is string value)
+                    Settings.Current.StereoMode.AdvancedOverride.EncodingType = value;
+            };
+            
+            AdvancedMonoPassesComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.StereoMode.AdvancedOverride.PassMode = cb.SelectedIndex == 1 ? "2-Pass" : "1-Pass";
+            };
         }
 
         private void Channels_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (sender is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string channel)
             {
-                Settings.CurrentChannel = channel;
+                // Update the global mode in Settings.Current
+                Settings.Current.CurrentMode = channel;
+                
+                // Update contextual panel visibility
+                MonoModeOptionsPanel.Visibility = channel == "Mono" ? Visibility.Visible : Visibility.Collapsed;
+                StereoModeOptionsPanel.Visibility = channel == "Stereo" ? Visibility.Visible : Visibility.Collapsed;
+                
+                // Rebind UI controls to appropriate settings context
+                RebindMainSettings();
+                
                 UpdateSettingsSummary();
+            }
+        }
+
+        private void RebindMainSettings()
+        {
+            // Get MAIN settings for current mode (not GetActiveSettings which could be advanced)
+            var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+            
+            // Bind main UI controls to MAIN settings without triggering events
+            var wasUpdating = _isUpdatingFromSettings;
+            _isUpdatingFromSettings = true;
+            
+            try
+            {
+                // Update UI controls to reflect the current MAIN settings
+                BitrateComboBox.Text = mainSettings.TargetBitrate;
+                SampleRateComboBox.SelectedItem = mainSettings.SampleRate;
+                ThresholdComboBox.Text = mainSettings.ConversionThreshold;
+                BitrateControlComboBox.SelectedItem = mainSettings.EncodingType;
+                
+                // Update passes ComboBox
+                var passModeItem = mainSettings.PassMode == "2-Pass" ? 
+                    PassesComboBox.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Content?.ToString() == "2-Pass") :
+                    PassesComboBox.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Content?.ToString() == "1-Pass");
+                if (passModeItem != null)
+                    PassesComboBox.SelectedItem = passModeItem;
+            }
+            finally
+            {
+                _isUpdatingFromSettings = wasUpdating;
             }
         }
 
         private void SampleRate_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isUpdatingFromSettings) return;
+            
             if (sender is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string rate)
             {
                 if (Settings.TryParseSampleRate(rate, out int sampleRate))
                 {
-                    Settings.TargetSampleRate = sampleRate;
+                    // Update MAIN settings for current mode (not GetActiveSettings which could be advanced)
+                    var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                        Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                    mainSettings.SampleRate = Settings.FormatSampleRate(sampleRate);
                     UpdateSettingsSummary();
                 }
             }
@@ -516,15 +660,20 @@ namespace Audiobook_Compressor
 
         private void BitrateControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isUpdatingFromSettings) return;
+            
             if (sender is System.Windows.Controls.ComboBox comboBox && comboBox.SelectedItem is string mode)
             {
-                Settings.BitrateControl = mode;
-                Settings.UseConstantBitrate = mode == "CBR";
+                // Update MAIN settings for current mode (not GetActiveSettings which could be advanced)
+                var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                    Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                mainSettings.EncodingType = mode;
 
-                if (Settings.UseConstantBitrate)
+                if (mode == "CBR")
                 {
                     PassesComboBox.SelectedIndex = 0;
                     PassesComboBox.IsEnabled = false;
+                    mainSettings.PassMode = "1-Pass";
                 }
                 else
                 {
@@ -734,35 +883,49 @@ namespace Audiobook_Compressor
                     var root = doc.Element("UserSettings");
                     if (root != null)
                     {
+                        // Load path settings
                         var src = root.Element("SourcePath")?.Value;
                         var outp = root.Element("OutputPath")?.Value;
                         var defOutp = root.Element("DefaultOutputPath")?.Value;
                         if (!string.IsNullOrWhiteSpace(src))
+                        {
                             SourcePathTextBox.Text = src;
-                        if (!string.IsNullOrWhiteSpace(outp))
-                            OutputPathTextBox.Text = outp;
-                        if (!string.IsNullOrWhiteSpace(defOutp))
-                            _defaultOutputPath = defOutp;
-                        // Load advanced override settings
-                        var stereoAdv = root.Element("AdvancedStereoOverrideSettings");
-                        if (stereoAdv != null)
-                        {
-                            Settings.AdvancedStereoOverrideSettings.Channel = stereoAdv.Element("Channel")?.Value ?? Settings.DefaultChannel;
-                            Settings.AdvancedStereoOverrideSettings.Bitrate = stereoAdv.Element("Bitrate")?.Value ?? Settings.FormatBitrate(Settings.DefaultBitrate);
-                            Settings.AdvancedStereoOverrideSettings.SampleRate = stereoAdv.Element("SampleRate")?.Value ?? Settings.FormatSampleRate(Settings.DefaultSampleRate);
-                            Settings.AdvancedStereoOverrideSettings.Threshold = stereoAdv.Element("Threshold")?.Value ?? Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
-                            Settings.AdvancedStereoOverrideSettings.BitrateControl = stereoAdv.Element("BitrateControl")?.Value ?? Settings.DefaultBitrateControl;
-                            Settings.AdvancedStereoOverrideSettings.PassesIndex = int.TryParse(stereoAdv.Element("PassesIndex")?.Value, out int si) ? si : 0;
+                            Settings.Current.SourcePath = src;
                         }
-                        var monoAdv = root.Element("AdvancedMonoOverrideSettings");
-                        if (monoAdv != null)
+                        if (!string.IsNullOrWhiteSpace(outp))
                         {
-                            Settings.AdvancedMonoOverrideSettings.Channel = monoAdv.Element("Channel")?.Value ?? Settings.DefaultChannel;
-                            Settings.AdvancedMonoOverrideSettings.Bitrate = monoAdv.Element("Bitrate")?.Value ?? Settings.FormatBitrate(Settings.DefaultBitrate);
-                            Settings.AdvancedMonoOverrideSettings.SampleRate = monoAdv.Element("SampleRate")?.Value ?? Settings.FormatSampleRate(Settings.DefaultSampleRate);
-                            Settings.AdvancedMonoOverrideSettings.Threshold = monoAdv.Element("Threshold")?.Value ?? Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
-                            Settings.AdvancedMonoOverrideSettings.BitrateControl = monoAdv.Element("BitrateControl")?.Value ?? Settings.DefaultBitrateControl;
-                            Settings.AdvancedMonoOverrideSettings.PassesIndex = int.TryParse(monoAdv.Element("PassesIndex")?.Value, out int mi) ? mi : 0;
+                            OutputPathTextBox.Text = outp;
+                            Settings.Current.OutputPath = outp;
+                        }
+                        if (!string.IsNullOrWhiteSpace(defOutp))
+                        {
+                            _defaultOutputPath = defOutp;
+                            Settings.Current.DefaultOutputPath = defOutp;
+                        }
+
+                        // Load current mode and advanced mode state
+                        var currentMode = root.Element("CurrentMode")?.Value;
+                        if (!string.IsNullOrWhiteSpace(currentMode))
+                            Settings.Current.CurrentMode = currentMode;
+
+                        var isAdvanced = root.Element("IsAdvancedMode")?.Value;
+                        if (bool.TryParse(isAdvanced, out bool advancedMode))
+                            Settings.Current.IsAdvancedMode = advancedMode;
+
+                        // Load Mono Mode settings
+                        var monoMode = root.Element("MonoMode");
+                        if (monoMode != null)
+                        {
+                            LoadCompressionSettings(monoMode.Element("Main"), Settings.Current.MonoMode.Main);
+                            LoadCompressionSettings(monoMode.Element("AdvancedOverride"), Settings.Current.MonoMode.AdvancedOverride);
+                        }
+
+                        // Load Stereo Mode settings
+                        var stereoMode = root.Element("StereoMode");
+                        if (stereoMode != null)
+                        {
+                            LoadCompressionSettings(stereoMode.Element("Main"), Settings.Current.StereoMode.Main);
+                            LoadCompressionSettings(stereoMode.Element("AdvancedOverride"), Settings.Current.StereoMode.AdvancedOverride);
                         }
                     }
                 }
@@ -778,60 +941,219 @@ namespace Audiobook_Compressor
             }
         }
 
+        private void LoadCompressionSettings(XElement? element, CompressionSettings settings)
+        {
+            if (element == null) return;
+
+            // Handle multiple XML structures for maximum compatibility: 
+            // - Old format: <Settings> wrapper
+            // - Current format: <CompressionSettings> wrapper  
+            // - Future format: no wrapper (direct access)
+            var settingsElement = element.Element("Settings") ?? element.Element("CompressionSettings");
+            var targetElement = settingsElement ?? element;
+
+            var channelMode = targetElement.Element("ChannelMode")?.Value;
+            if (!string.IsNullOrWhiteSpace(channelMode))
+                settings.ChannelMode = channelMode;
+
+            var targetBitrate = targetElement.Element("TargetBitrate")?.Value;
+            if (!string.IsNullOrWhiteSpace(targetBitrate))
+                settings.TargetBitrate = targetBitrate;
+
+            var sampleRate = targetElement.Element("SampleRate")?.Value;
+            if (!string.IsNullOrWhiteSpace(sampleRate))
+                settings.SampleRate = sampleRate;
+
+            var threshold = targetElement.Element("ConversionThreshold")?.Value;
+            if (!string.IsNullOrWhiteSpace(threshold))
+                settings.ConversionThreshold = threshold;
+
+            var encodingType = targetElement.Element("EncodingType")?.Value;
+            if (!string.IsNullOrWhiteSpace(encodingType))
+                settings.EncodingType = encodingType;
+
+            var passMode = targetElement.Element("PassMode")?.Value;
+            if (!string.IsNullOrWhiteSpace(passMode))
+                settings.PassMode = passMode;
+        }
+
         private void SaveUserSettings()
         {
+            // BREAKPOINT 3: Set breakpoint here to trace settings save process
+            // System.Diagnostics.Debugger.Break(); // REMOVED: Settings save entry point debugging
+            
             try
             {
+                // Update Settings.Current with current UI values
+                Settings.Current.SourcePath = SourcePathTextBox.Text;
+                Settings.Current.OutputPath = OutputPathTextBox.Text;
+                Settings.Current.DefaultOutputPath = _defaultOutputPath;
+
+                // BREAKPOINT 4: Check settings values before saving
+                // var monoMainBitrate = Settings.Current.MonoMode.Main.TargetBitrate;
+                // var monoAdvancedBitrate = Settings.Current.MonoMode.AdvancedOverride.TargetBitrate;
+                // System.Diagnostics.Debug.WriteLine($"SAVE DEBUG: Mono Main={monoMainBitrate}, Advanced={monoAdvancedBitrate}");
+                // System.Diagnostics.Debugger.Break(); // REMOVED: Settings values check debugging
+
                 var doc = new XDocument(
                     new XElement("UserSettings",
-                        new XElement("SourcePath", SourcePathTextBox.Text),
-                        new XElement("OutputPath", OutputPathTextBox.Text),
-                        new XElement("DefaultOutputPath", _defaultOutputPath),
-                        // Save advanced override settings
-                        new XElement("AdvancedStereoOverrideSettings",
-                            new XElement("Channel", Settings.AdvancedStereoOverrideSettings.Channel),
-                            new XElement("Bitrate", Settings.AdvancedStereoOverrideSettings.Bitrate),
-                            new XElement("SampleRate", Settings.AdvancedStereoOverrideSettings.SampleRate),
-                            new XElement("Threshold", Settings.AdvancedStereoOverrideSettings.Threshold),
-                            new XElement("BitrateControl", Settings.AdvancedStereoOverrideSettings.BitrateControl),
-                            new XElement("PassesIndex", Settings.AdvancedStereoOverrideSettings.PassesIndex)
+                        new XElement("SourcePath", Settings.Current.SourcePath),
+                        new XElement("OutputPath", Settings.Current.OutputPath),
+                        new XElement("DefaultOutputPath", Settings.Current.DefaultOutputPath),
+                        new XElement("CurrentMode", Settings.Current.CurrentMode),
+                        new XElement("IsAdvancedMode", Settings.Current.IsAdvancedMode),
+                        new XElement("MonoMode",
+                            new XElement("Main", CreateCompressionSettingsXml(Settings.Current.MonoMode.Main)),
+                            new XElement("AdvancedOverride", CreateCompressionSettingsXml(Settings.Current.MonoMode.AdvancedOverride))
                         ),
-                        new XElement("AdvancedMonoOverrideSettings",
-                            new XElement("Channel", Settings.AdvancedMonoOverrideSettings.Channel),
-                            new XElement("Bitrate", Settings.AdvancedMonoOverrideSettings.Bitrate),
-                            new XElement("SampleRate", Settings.AdvancedMonoOverrideSettings.SampleRate),
-                            new XElement("Threshold", Settings.AdvancedMonoOverrideSettings.Threshold),
-                            new XElement("BitrateControl", Settings.AdvancedMonoOverrideSettings.BitrateControl),
-                            new XElement("PassesIndex", Settings.AdvancedMonoOverrideSettings.PassesIndex)
+                        new XElement("StereoMode",
+                            new XElement("Main", CreateCompressionSettingsXml(Settings.Current.StereoMode.Main)),
+                            new XElement("AdvancedOverride", CreateCompressionSettingsXml(Settings.Current.StereoMode.AdvancedOverride))
                         )
                     )
                 );
+
                 doc.Save(SettingsFile);
+                
+                // BREAKPOINT 5: Confirm save completed
             }
-            catch { /* Ignore errors */ }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error saving settings: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private XElement CreateCompressionSettingsXml(CompressionSettings settings)
+        {
+            // FIXED: Remove the "Settings" wrapper that was causing XML structure mismatch
+            // The wrapper was preventing LoadCompressionSettings from finding the elements
+            return new XElement("CompressionSettings",
+                new XElement("ChannelMode", settings.ChannelMode),
+                new XElement("TargetBitrate", settings.TargetBitrate),
+                new XElement("SampleRate", settings.SampleRate),
+                new XElement("ConversionThreshold", settings.ConversionThreshold),
+                new XElement("EncodingType", settings.EncodingType),
+                new XElement("PassMode", settings.PassMode)
+            );
+        }
+
+        private void RestoreUIFromSettings()
+        {
+            var wasUpdating = _isUpdatingFromSettings;
+            _isUpdatingFromSettings = true;
+            
+            try
+            {
+                // Restore the main mode selection first
+                ChannelsComboBox.SelectedItem = Settings.Current.CurrentMode;
+                
+                // Get MAIN settings for the current mode (never use GetActiveSettings for main UI)
+                var mainSettings = Settings.Current.CurrentMode == "Mono" ? 
+                    Settings.Current.MonoMode.Main : Settings.Current.StereoMode.Main;
+                
+                // Restore main UI controls to show MAIN settings only
+                BitrateComboBox.Text = mainSettings.TargetBitrate;
+                SampleRateComboBox.SelectedItem = mainSettings.SampleRate;
+                ThresholdComboBox.Text = mainSettings.ConversionThreshold;
+                BitrateControlComboBox.SelectedItem = mainSettings.EncodingType;
+                
+                // Update passes ComboBox
+                var passModeItem = mainSettings.PassMode == "2-Pass" ? 
+                    PassesComboBox.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Content?.ToString() == "2-Pass") :
+                    PassesComboBox.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Content?.ToString() == "1-Pass");
+                if (passModeItem != null)
+                    PassesComboBox.SelectedItem = passModeItem;
+                
+                // Restore contextual panel visibility based on current mode
+                MonoModeOptionsPanel.Visibility = Settings.Current.CurrentMode == "Mono" ? Visibility.Visible : Visibility.Collapsed;
+                StereoModeOptionsPanel.Visibility = Settings.Current.CurrentMode == "Stereo" ? Visibility.Visible : Visibility.Collapsed;
+                
+                // CRITICAL FIX: Restore BOTH mode's radio button states and advanced settings
+                // This ensures that when user switches modes, the inactive mode state is preserved
+                RestoreAllModeStates();
+            }
+            finally
+            {
+                _isUpdatingFromSettings = wasUpdating;
+            }
+        }
+
+        private void RestoreAllModeStates()
+        {
+            // Restore Mono mode radio button states and advanced settings
+            RestoreModeState("Mono", Settings.Current.MonoMode);
+            
+            // Restore Stereo mode radio button states and advanced settings  
+            RestoreModeState("Stereo", Settings.Current.StereoMode);
+        }
+
+        private void RestoreModeState(string mode, ModeSettings modeSettings)
+        {
+            if (mode == "Mono")
+            {
+                // Check if Mono mode was in advanced state when saved
+                var isMonoAdvanced = Settings.Current.CurrentMode == "Mono" && Settings.Current.IsAdvancedMode;
+                
+                if (isMonoAdvanced)
+                {
+                    MonoAdvancedRadio.IsChecked = true;
+                    AdvancedStereoOverridePanel.Visibility = Visibility.Visible;
+                    
+                    // Restore MonoMode.AdvancedOverride settings to AdvancedStereo panel
+                    var advancedSettings = modeSettings.AdvancedOverride;
+                    AdvancedStereoChannelsComboBox.SelectedItem = advancedSettings.ChannelMode;
+                    AdvancedStereoBitrateComboBox.Text = advancedSettings.TargetBitrate;
+                    AdvancedStereoSampleRateComboBox.SelectedItem = advancedSettings.SampleRate;
+                    AdvancedStereoThresholdComboBox.Text = advancedSettings.ConversionThreshold;
+                    AdvancedStereoBitrateControlComboBox.SelectedItem = advancedSettings.EncodingType;
+                    AdvancedStereoPassesComboBox.SelectedIndex = advancedSettings.PassMode == "2-Pass" ? 1 : 0;
+                }
+                else
+                {
+                    MonoConvertStereoRadio.IsChecked = true;
+                    AdvancedStereoOverridePanel.Visibility = Visibility.Collapsed;
+                }
+            }
+            else // Stereo mode
+            {
+                // Check if Stereo mode was in advanced state when saved
+                var isStereoAdvanced = Settings.Current.CurrentMode == "Stereo" && Settings.Current.IsAdvancedMode;
+                
+                if (isStereoAdvanced)
+                {
+                    StereoAdvancedRadio.IsChecked = true;
+                    AdvancedMonoOverridePanel.Visibility = Visibility.Visible;
+                    
+                    // Restore StereoMode.AdvancedOverride settings to AdvancedMono panel
+                    var advancedSettings = modeSettings.AdvancedOverride;
+                    AdvancedMonoChannelsComboBox.SelectedItem = advancedSettings.ChannelMode;
+                    AdvancedMonoBitrateComboBox.Text = advancedSettings.TargetBitrate;
+                    AdvancedMonoSampleRateComboBox.SelectedItem = advancedSettings.SampleRate;
+                    AdvancedMonoThresholdComboBox.Text = advancedSettings.ConversionThreshold;
+                    AdvancedMonoBitrateControlComboBox.SelectedItem = advancedSettings.EncodingType;
+                    AdvancedMonoPassesComboBox.SelectedIndex = advancedSettings.PassMode == "2-Pass" ? 1 : 0;
+                }
+                else
+                {
+                    StereoCopyMonoRadio.IsChecked = true;
+                    AdvancedMonoOverridePanel.Visibility = Visibility.Collapsed;
+                }
+            }
         }
 
         private void SaveDefaultOutputPath()
         {
             _defaultOutputPath = OutputPathTextBox.Text;
+            Settings.Current.DefaultOutputPath = _defaultOutputPath;
             SaveUserSettings();
         }
 
         private void LoadDefaultOutputPath()
         {
             if (!string.IsNullOrWhiteSpace(_defaultOutputPath))
-                OutputPathTextBox.Text = _defaultOutputPath;
-        }
-
-        private void CheckSourceOutputCollision()
-        {
-            if (IsSourceOutputCollision())
             {
-                System.Windows.MessageBox.Show(
-                    "Warning: Source and Output folders are the same. This may overwrite your source files.",
-                    "Folder Collision Detected",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
+                OutputPathTextBox.Text = _defaultOutputPath;
+                Settings.Current.OutputPath = _defaultOutputPath;
             }
         }
 
@@ -852,6 +1174,42 @@ namespace Audiobook_Compressor
                 return result == MessageBoxResult.OK;
             }
             return true;
+        }
+
+        private void RebindAdvancedOverrideSettings()
+        {
+            var wasUpdating = _isUpdatingFromSettings;
+            _isUpdatingFromSettings = true;
+            
+            try
+            {
+                if (Settings.Current.CurrentMode == "Mono")
+                {
+                    // Bind to stereo override settings
+                    var stereoOverride = Settings.Current.MonoMode.AdvancedOverride;
+                    AdvancedStereoChannelsComboBox.SelectedItem = stereoOverride.ChannelMode;
+                    AdvancedStereoBitrateComboBox.Text = stereoOverride.TargetBitrate;
+                    AdvancedStereoSampleRateComboBox.SelectedItem = stereoOverride.SampleRate;
+                    AdvancedStereoThresholdComboBox.Text = stereoOverride.ConversionThreshold;
+                    AdvancedStereoBitrateControlComboBox.SelectedItem = stereoOverride.EncodingType;
+                    AdvancedStereoPassesComboBox.SelectedIndex = stereoOverride.PassMode == "2-Pass" ? 1 : 0;
+                }
+                else
+                {
+                    // Bind to mono override settings
+                    var monoOverride = Settings.Current.StereoMode.AdvancedOverride;
+                    AdvancedMonoChannelsComboBox.SelectedItem = monoOverride.ChannelMode;
+                    AdvancedMonoBitrateComboBox.Text = monoOverride.TargetBitrate;
+                    AdvancedMonoSampleRateComboBox.SelectedItem = monoOverride.SampleRate;
+                    AdvancedMonoThresholdComboBox.Text = monoOverride.ConversionThreshold;
+                    AdvancedMonoBitrateControlComboBox.SelectedItem = monoOverride.EncodingType;
+                    AdvancedMonoPassesComboBox.SelectedIndex = monoOverride.PassMode == "2-Pass" ? 1 : 0;
+                }
+            }
+            finally
+            {
+                _isUpdatingFromSettings = wasUpdating;
+            }
         }
     }
 }
