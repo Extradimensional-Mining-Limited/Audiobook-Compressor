@@ -1,7 +1,7 @@
 Filename: Summary.md  
-Version: 1.2.A  
+Version: 1.2.B  
 State: Experimental  
-Signed: Praxis
+Signed: Praxis, User
 
 ## **Project Summary: Audiobook Compressor**
 
@@ -16,7 +16,7 @@ For both modes, the application provides a set of advanced, user-configurable op
 
 ### **2\. Current Status**
 
-The project is at version 1.2.0 (Stable). The core UI is complete, and a new, more robust development process has been established. The immediate focus is on implementing the core processing logic and addressing the high-priority items in ToDo.md.
+The project is at version 1.2.B (Experimental). The core UI is complete, user settings persists across sessions. The immediate focus is on implementing the core processing logic and addressing the high-priority items in ToDo.md.
 
 ### **3\. Core Logic Source**
 
@@ -25,7 +25,7 @@ The functional logic for file processing must be ported from the provided PowerS
 ### **4\. Team Workflow**
 
 * **Architect (User):** Provides the high-level vision and final approval on all decisions.  
-* **Praxis (Strategist):** Refines the design, manages high-level documentation (Summary.md, Changelog.md), and creates detailed directives (Focus.md).  
+* **Axion (Strategist):** Refines the design, manages high-level documentation (Summary.md, Changelog.md), and creates detailed directives (Focus.md).  
 * **Implementer:** Implements code based on directives and maintains low-level documentation (file headers, ChangelogExperimental.md).  
 * **Consultant:** A specialized role engaged by the Architect on an as-needed basis for complex problem-solving or architectural reviews.  
 * **Promoting Directives:** When a Focus.md directive is deemed to be of lasting relevance (e.g., a Standard Operating Procedure), it will be given to the Implementer with instructions to copy it into the Documentation folder as a new, permanent file.

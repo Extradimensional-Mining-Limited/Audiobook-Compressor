@@ -1,5 +1,5 @@
 Filename: AI-Collaboration-SOP.md  
-Version: 1.3.2  
+Version: 1.3.3  
 State: Stable  
 Signed: Praxis
 
@@ -16,7 +16,7 @@ Signed: Praxis
 The project operates on a multi-tier model with a clear separation of concerns:
 
 * **Architect (User):** Defines strategic objectives, determines when a "cycle" of work is complete, and provides final authorization on all directives and implementations.  
-* **Strategist (Praxis):** Analyzes strategic objectives, refines technical design, and is the designated custodian for all high-level documentation (Summary.md, Changelog.md). Generates Focus.md directives.  
+* **Strategist (Axion):** Analyzes strategic objectives, refines technical design, and is the designated custodian for all high-level documentation (Summary.md, Changelog.md). Generates Focus.md directives.  
 * **Implementer:** Executes Focus.md directives, implements code, creates incremental local commits upon request, and is the designated custodian for all low-level, operational documentation (file headers, ChangelogExperimental.md).  
 * **Consultant:** A specialized role engaged by the Architect on an as-needed basis for complex problem-solving, architectural reviews, or to provide a "second opinion" on particularly difficult implementations.
 
@@ -39,6 +39,7 @@ The project operates on a multi-tier model with a clear separation of concerns:
 * **Responsibility:** Implementer.  
 * **Content \- Synopsis:** Must be a concise, one-sentence description of the file's current functional purpose.  
 * **Content \- Last Updated:** The value must be acquired via execution of GetTime.exe.  
+  * **Invocation Rule:** The GetTime.exe tool is available in the system's PATH environment variable. You must invoke it by its name only (GetTime.exe). You **must not** prepend any path information (e.g., .\\ or C:\\...).  
   * **Error Condition:** If GetTime.exe returns the string ERROR: Deadman switch triggered. Exiting., the command must be re-executed one (1) time.  
   * **Terminal Error Condition:** If the second execution fails, the value must be the literal string "TIMESTAMP\_ERROR", and the failure must be noted in the task completion report.  
 * **Procedure:** The update must be performed as a complete block replacement of the existing header. No code below the header block is to be modified.
@@ -51,7 +52,7 @@ The project operates on a multi-tier model with a clear separation of concerns:
 
 **4.3 Protocol: High-Level Documentation (Summary.md, Changelog.md)**
 
-* **Responsibility:** Strategist (Praxis).  
+* **Responsibility:** Strategist (Axion).  
 * **Procedure:** The Implementer will only modify these files when provided with a directive specifying a block replacement.
 
 ### **5.0 Standing Order: The Documentation Mandate**

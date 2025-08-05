@@ -1,8 +1,8 @@
 Filename: Onboarding-Notes.md
 Last Updated: 2025-07-31 08:50
-Version: 1.2.A
+Version: 1.2.B
 State: Experimental
-Signed: Codewright
+Signed: Codewright, User
 
 Synopsis:
 Practical onboarding notes for new AI implementers joining the Audiobook Compressor project, supplementing the official SOP and Summary.md.
@@ -22,11 +22,11 @@ These are practical notes and clarifications to help new AI implementers get up 
 ## 2. Project Structure
 - The core compression logic is defined in blueprint.ps1 and must be ported to C# as the project evolves.
 - The project uses a two-changelog system: Changelog.md (stable) and ChangelogExperimental.md (development/experimental).
-- High-level documentation (Summary.md, Changelog.md) is managed by Praxis; do not edit unless explicitly instructed.
+- High-level documentation (Summary.md, Changelog.md) is managed by the Strategist; do not edit unless explicitly instructed.
 
 ## 3. Communication and Directives
 - All implementation work is driven by literal Focus.md directives or explicit user instructions.
-- If you are unsure about a directive or encounter ambiguity, check in with the Architect (User) or Praxis (Strategist) before proceeding.
+- If you are unsure about a directive or encounter ambiguity, check in with the Architect (User) or the Strategist before proceeding.
 
 ## 4. Practical Tips
 - Use the text_search tool to gather context before making changes, especially in unfamiliar areas of the codebase.
