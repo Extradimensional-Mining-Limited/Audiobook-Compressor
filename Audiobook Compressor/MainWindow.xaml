@@ -1,15 +1,12 @@
 ﻿<!--
     Filename: MainWindow.xaml
-    Last Updated: 2025-07-25 03:32
-    Version: 1.2.0
-    State: Stable
-    Signed: User
+    Last Updated: 2025-08-05 13:32 CEST
+    Version: 1.2.C
+    State: Experimental
+    Signed: Vanguard
 
     Synopsis:
-    - Finalized UI vertical spacing and layout per Praxis directive (Focus 2.2.6.md).
-    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
-    - Documentation and changelog discipline enforced for release.
-    - No code changes since last version except header and documentation updates.
+    Completed Focus 9.9.0 naming refactor: renamed UI panels and ComboBox controls for contextual clarity - all 18 advanced controls now use mode-appropriate naming (MonoAdvanced*/StereoAdvanced*).
 -->
 <Window x:Class="Audiobook_Compressor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -194,37 +191,37 @@
                             </ComboBox>
                         </WrapPanel>
                         <!-- Row 2: Contextual Radio Buttons and Override Panels -->
-                        <StackPanel x:Name="MonoModeOptionsPanel" Visibility="Collapsed">
+                        <StackPanel x:Name="MonoModePanel" Visibility="Collapsed">
                             <WrapPanel Margin="0,10,0,0">
                                 <RadioButton x:Name="MonoCopyStereoRadio" Content="Copy stereo files" GroupName="MonoModeGroup" Margin="0,0,10,0"/>
                                 <RadioButton x:Name="MonoConvertStereoRadio" Content="Convert stereo to mono" GroupName="MonoModeGroup" IsChecked="True" Margin="0,0,10,0"/>
                                 <RadioButton x:Name="MonoAdvancedRadio" Content="Advanced..." GroupName="MonoModeGroup"/>
                             </WrapPanel>
-                            <WrapPanel x:Name="AdvancedStereoOverridePanel" Visibility="Collapsed" Margin="0,10,0,0">
-                                <ComboBox x:Name="AdvancedStereoChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="AdvancedStereoBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="AdvancedStereoSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="AdvancedStereoThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="AdvancedStereoBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="AdvancedStereoPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                            <WrapPanel x:Name="MonoModeAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                <ComboBox x:Name="MonoAdvancedChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="MonoAdvancedBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="MonoAdvancedSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="MonoAdvancedThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="MonoAdvancedBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="MonoAdvancedPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
                                     <ComboBoxItem Content="1-Pass" IsSelected="True"/>
                                     <ComboBoxItem Content="2-Pass"/>
                                 </ComboBox>
                             </WrapPanel>
                         </StackPanel>
-                        <StackPanel x:Name="StereoModeOptionsPanel" Visibility="Collapsed">
+                        <StackPanel x:Name="StereoModePanel" Visibility="Collapsed">
                             <WrapPanel Margin="0,10,0,0">
                                 <RadioButton x:Name="StereoCopyMonoRadio" Content="Copy mono files" GroupName="StereoModeGroup" IsChecked="True" Margin="0,0,10,0"/>
                                 <RadioButton x:Name="StereoConvertMonoRadio" Content="Convert mono to stereo" GroupName="StereoModeGroup" Margin="0,0,10,0"/>
                                 <RadioButton x:Name="StereoAdvancedRadio" Content="Advanced..." GroupName="StereoModeGroup"/>
                             </WrapPanel>
-                            <WrapPanel x:Name="AdvancedMonoOverridePanel" Visibility="Collapsed" Margin="0,10,0,0">
-                                <ComboBox x:Name="AdvancedMonoChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="AdvancedMonoBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="AdvancedMonoSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="AdvancedMonoThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="AdvancedMonoBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="AdvancedMonoPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
+                            <WrapPanel x:Name="StereoModeAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
+                                <ComboBox x:Name="StereoAdvancedChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="StereoAdvancedBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="StereoAdvancedSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="StereoAdvancedThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox x:Name="StereoAdvancedBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox x:Name="StereoAdvancedPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
                                     <ComboBoxItem Content="1-Pass" IsSelected="True"/>
                                     <ComboBoxItem Content="2-Pass"/>
                                 </ComboBox>

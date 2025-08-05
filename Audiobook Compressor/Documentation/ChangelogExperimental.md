@@ -1,7 +1,8 @@
 Filename: ChangelogExperimental.md  
-Version: 1.2.B  
+Last Updated: 2025-08-05 13:32 CEST
+Version: 1.2.C  
 State: Experimental  
-Signed: Advisor
+Signed: Vanguard
 
 # **Experimental Changelog**
 
@@ -41,5 +42,6 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.A: fix: Resolved radio button state persistence issues where selected action would not persist correctly when switching between modes.
 - 1.2.B: fix: Resolved critical architecture disconnect where UI settings had no effect on processing behavior.
 - 1.2.B: fix: Implemented proper JSON parsing in ProbeAudioFileAsync to populate AudioFileInfo.Bitrate property.
+- 1.2.C: fix: Applied naming convention refactor per Focus 8.0.2 and 9.9.0 - renamed DefaultMonoCopyThreshold to DefaultConversionThreshold, updated all UI panels and ComboBox controls to contextually appropriate names, and implemented seamless XML settings migration.
 
 **Note**: GetTime.exe failure reported - timestamp shows as TIMESTAMP_ERROR for version 1.2.B changes.

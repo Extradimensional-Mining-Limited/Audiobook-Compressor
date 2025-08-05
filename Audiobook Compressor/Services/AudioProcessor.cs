@@ -306,7 +306,7 @@ namespace Audiobook_Compressor.Services
             // 2. Get the user's stereo conversion threshold from main settings
             if (!Settings.TryParseBitrate(context.MainSettings.ConversionThreshold, out int stereoConversionThreshold))
             {
-                stereoConversionThreshold = Settings.DefaultMonoCopyThreshold;
+                stereoConversionThreshold = Settings.DefaultConversionThreshold;
             }
 
             Debug.WriteLine($"Upmix Logic: Current bitrate={fileInfo.Bitrate}, Estimated stereo={estimatedStereoBitrate}, Threshold={stereoConversionThreshold}");

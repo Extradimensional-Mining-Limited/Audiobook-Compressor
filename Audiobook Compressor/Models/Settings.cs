@@ -1,12 +1,12 @@
 /*
     Filename: Settings.cs
-    Last Updated: TIMESTAMP_ERROR
-    Version: 1.2.B
+    Last Updated: 2025-08-05 13:32 CEST
+    Version: 1.2.C
     State: Experimental
-    Signed: Advisor
+    Signed: Vanguard
 
     Synopsis:
-    Enhanced data model with SelectedAction property in ModeSettings to support radio button state persistence per Focus 7.0.0 directive.
+    Completed Focus 9.9.0 naming refactor: renamed DefaultMonoCopyThreshold to DefaultConversionThreshold for better clarity across all conversion scenarios.
 */
 
 using System;
@@ -25,7 +25,7 @@ namespace Audiobook_Compressor.Models
         private string _channelMode = Settings.DefaultChannel;
         private string _targetBitrate = Settings.FormatBitrate(Settings.DefaultBitrate);
         private string _sampleRate = Settings.FormatSampleRate(Settings.DefaultSampleRate);
-        private string _conversionThreshold = Settings.FormatBitrate(Settings.DefaultMonoCopyThreshold);
+        private string _conversionThreshold = Settings.FormatBitrate(Settings.DefaultConversionThreshold);
         private string _encodingType = Settings.DefaultBitrateControl;
         private string _passMode = "1-Pass";
 
@@ -194,9 +194,9 @@ namespace Audiobook_Compressor.Models
         public const int DefaultBitrate = 48000;
 
         /// <summary>
-        /// Default threshold for copying mono files (64kbps)
+        /// Default threshold for copying files without conversion (64kbps)
         /// </summary>
-        public const int DefaultMonoCopyThreshold = 64000;
+        public const int DefaultConversionThreshold = 64000;
 
         /// <summary>
         /// Default sample rate for compressed audio (22050Hz)
@@ -267,7 +267,7 @@ namespace Audiobook_Compressor.Models
         /// </summary>
         public static int MonoCopyThreshold
         {
-            get => TryParseBitrate(Current.GetActiveSettings().ConversionThreshold, out int value) ? value : DefaultMonoCopyThreshold;
+            get => TryParseBitrate(Current.GetActiveSettings().ConversionThreshold, out int value) ? value : DefaultConversionThreshold;
             set => Current.GetActiveSettings().ConversionThreshold = FormatBitrate(value);
         }
 
