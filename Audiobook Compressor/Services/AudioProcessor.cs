@@ -1,12 +1,12 @@
 /*
     Filename: AudioProcessor.cs
-    Last Updated: 2025-08-05 04:48
-    Version: 1.2.B
+    Last Updated: 2025-08-06 08:39 CEST
+    Version: 1.2.D
     State: Experimental
-    Signed: Advisor
+    Signed: Vanguard
 
     Synopsis:
-    Refactored to use ProcessingContext for contextual file handling and implemented Focus 5.0.0 decision tree logic.
+    Implemented Focus 5.0.4 Advanced panel "Defer to Rockit" logic with quality-preserving VBR processing, sub-threshold behavior controls, and custom bitrate conversion options.
 */
 
 using System;
@@ -258,7 +258,7 @@ namespace Audiobook_Compressor.Services
                         
                     case "Advanced":
                         Debug.WriteLine("Action: Mono mode - using advanced settings for stereo file.");
-                        await BuildAndRunFFmpeg(audioFile, context.AdvancedSettings, outputBasePath);
+                        await ProcessWithAdvancedLogic(audioFile, fileInfo, context.AdvancedSettings, outputBasePath);
                         break;
                         
                     case "Convert":
@@ -279,7 +279,7 @@ namespace Audiobook_Compressor.Services
                         
                     case "Advanced":
                         Debug.WriteLine("Action: Stereo mode - using advanced settings for mono file.");
-                        await BuildAndRunFFmpeg(audioFile, context.AdvancedSettings, outputBasePath);
+                        await ProcessWithAdvancedLogic(audioFile, fileInfo, context.AdvancedSettings, outputBasePath);
                         break;
                         
                     case "Convert":
@@ -296,111 +296,126 @@ namespace Audiobook_Compressor.Services
         }
 
         /// <summary>
-        /// Handles the special mono-to-stereo conversion logic from Focus 5.0.0
+        /// Processes files using Advanced panel logic with sub-threshold behavior
         /// </summary>
-        private async Task HandleUpmixLogic(AudioFileInfo audioFile, DetailedFileInfo fileInfo, ProcessingContext context, string outputBasePath)
+        private async Task ProcessWithAdvancedLogic(AudioFileInfo audioFile, DetailedFileInfo fileInfo, CompressionSettings settings, string outputBasePath)
         {
-            // 1. Estimate the upmixed bitrate
-            long estimatedStereoBitrate = fileInfo.Bitrate * 2;
-
-            // 2. Get the user's stereo conversion threshold from main settings
-            if (!Settings.TryParseBitrate(context.MainSettings.ConversionThreshold, out int stereoConversionThreshold))
+            Debug.WriteLine($"Processing with Advanced logic: threshold={settings.ConversionThreshold}, file bitrate={fileInfo.Bitrate}");
+            
+            // Parse threshold for comparison
+            if (!Settings.TryParseBitrate(settings.ConversionThreshold, out int threshold))
             {
-                stereoConversionThreshold = Settings.DefaultConversionThreshold;
+                threshold = Settings.DefaultConversionThreshold;
             }
 
-            Debug.WriteLine($"Upmix Logic: Current bitrate={fileInfo.Bitrate}, Estimated stereo={estimatedStereoBitrate}, Threshold={stereoConversionThreshold}");
-
-            // 3. Compare and decide
-            if (estimatedStereoBitrate >= stereoConversionThreshold)
+            // Check if file is at or above threshold
+            if (fileInfo.Bitrate >= threshold)
             {
-                // File needs full compression - upmix to stereo AND apply target bitrate
-                Debug.WriteLine("Action: Estimated bitrate above threshold - full compression with upmix.");
-                await BuildAndRunFFmpegWithUpmix(audioFile, context.MainSettings, outputBasePath, applyTargetBitrate: true);
+                Debug.WriteLine("File at or above threshold - using main advanced settings.");
+                await BuildAndRunFFmpeg(audioFile, settings, outputBasePath);
             }
             else
             {
-                // File is "good enough" - upmix to stereo but preserve quality
-                Debug.WriteLine("Action: Estimated bitrate below threshold - quality preservation with upmix.");
-                await BuildAndRunFFmpegWithUpmix(audioFile, context.MainSettings, outputBasePath, applyTargetBitrate: false);
+                Debug.WriteLine($"File below threshold - applying sub-threshold action: {settings.SubThresholdAction}");
+                
+                switch (settings.SubThresholdAction)
+                {
+                    case "Copy":
+                        Debug.WriteLine("Sub-threshold action: Copy");
+                        await CopyFile(audioFile, outputBasePath);
+                        break;
+                        
+                    case "DeferToRockit":
+                        Debug.WriteLine("Sub-threshold action: Defer to Rockit");
+                        await ProcessWithRockitQualityLogic(audioFile, fileInfo, settings, outputBasePath);
+                        break;
+                        
+                    case "ConvertTo":
+                        Debug.WriteLine($"Sub-threshold action: Convert to {settings.CustomTargetBitrate}");
+                        await ProcessWithCustomBitrate(audioFile, fileInfo, settings, outputBasePath);
+                        break;
+                        
+                    default:
+                        Debug.WriteLine("Unknown sub-threshold action - defaulting to copy");
+                        await CopyFile(audioFile, outputBasePath);
+                        break;
+                }
             }
         }
 
         /// <summary>
-        /// Determines if a file should be copied based on threshold settings
+        /// Implements the "Defer to Rockit" quality-preserving logic from Focus 5.0.3
         /// </summary>
-        private static bool ShouldCopyFile(DetailedFileInfo fileInfo, CompressionSettings settings)
+        private async Task ProcessWithRockitQualityLogic(AudioFileInfo audioFile, DetailedFileInfo fileInfo, CompressionSettings settings, string outputBasePath)
         {
-            if (!Settings.TryParseBitrate(settings.ConversionThreshold, out int threshold))
-                return false;
-
-            return fileInfo.Bitrate > 0 && fileInfo.Bitrate <= threshold;
+            Debug.WriteLine($"Rockit Quality Logic: file channels={fileInfo.Channels}, target channels={settings.ChannelMode}");
+            
+            // Determine channel transformation scenario
+            var targetChannels = settings.ChannelMode == "Mono" ? 1 : 2;
+            
+            if (fileInfo.Channels == targetChannels)
+            {
+                // Same channels - perform simple file copy (zero generational loss)
+                Debug.WriteLine("Rockit Logic: Same channels detected - performing file copy for zero generational loss.");
+                await CopyFile(audioFile, outputBasePath);
+            }
+            else if (fileInfo.Channels > targetChannels)
+            {
+                // Channel reduction (Stereo ? Mono) - VBR downmix with maxrate capped at original bitrate
+                Debug.WriteLine($"Rockit Logic: Channel reduction ({fileInfo.Channels} ? {targetChannels}) - VBR downmix with maxrate={fileInfo.Bitrate}bps");
+                await BuildAndRunFFmpegWithVBR(audioFile, settings, outputBasePath, fileInfo.Bitrate, false);
+            }
+            else
+            {
+                // Channel expansion (Mono ? Stereo) - VBR upmix with maxrate capped at estimated × 1.10
+                var estimatedStereoBitrate = fileInfo.Bitrate * 2;
+                var maxRate = (int)(estimatedStereoBitrate * 1.10);
+                Debug.WriteLine($"Rockit Logic: Channel expansion ({fileInfo.Channels} ? {targetChannels}) - VBR upmix with maxrate={maxRate}bps");
+                await BuildAndRunFFmpegWithVBR(audioFile, settings, outputBasePath, maxRate, true);
+            }
         }
 
         /// <summary>
-        /// Copies a file to the output directory maintaining directory structure
+        /// Processes files with custom target bitrate for "Convert to:" sub-threshold action
         /// </summary>
-        private async Task CopyFile(AudioFileInfo audioFile, string outputBasePath)
+        private async Task ProcessWithCustomBitrate(AudioFileInfo audioFile, DetailedFileInfo fileInfo, CompressionSettings settings, string outputBasePath)
+        {
+            // Create a temporary settings object with the custom bitrate
+            var customSettings = new CompressionSettings
+            {
+                ChannelMode = settings.ChannelMode,
+                TargetBitrate = settings.CustomTargetBitrate,
+                SampleRate = settings.SampleRate,
+                ConversionThreshold = settings.ConversionThreshold,
+                EncodingType = settings.EncodingType,
+                PassMode = settings.PassMode
+            };
+            
+            Debug.WriteLine($"Processing with custom bitrate: {customSettings.TargetBitrate}");
+            await BuildAndRunFFmpeg(audioFile, customSettings, outputBasePath);
+        }
+
+        /// <summary>
+        /// Builds and runs FFmpeg with VBR quality settings and dynamic maxrate caps
+        /// </summary>
+        private async Task BuildAndRunFFmpegWithVBR(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath, int maxRateBps, bool forceUpmix)
         {
             try
             {
-                var sourceExt = Path.GetExtension(audioFile.SourcePath);
-                var baseName = Path.GetFileNameWithoutExtension(audioFile.SourcePath);
-                var sanitizedBaseName = SanitizeFilename(baseName);
-                var relativeDir = Path.GetDirectoryName(audioFile.RelativePath);
-                var outputDir = string.IsNullOrEmpty(relativeDir) ? outputBasePath : Path.Combine(outputBasePath, relativeDir);
-                
-                Directory.CreateDirectory(outputDir);
-                var destFile = Path.Combine(outputDir, sanitizedBaseName + sourceExt);
-                
-                await Task.Run(() => File.Copy(audioFile.SourcePath, destFile, true), _cancellationToken);
-                OnFileProcessed(audioFile, true);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error copying file: {ex.Message}");
-                OnFileProcessed(audioFile, false);
-            }
-        }
-
-        /// <summary>
-        /// Builds and runs FFmpeg command with the specified settings
-        /// </summary>
-        private async Task BuildAndRunFFmpeg(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath)
-        {
-            try
-            {
-                var command = BuildFFmpegCommand(audioFile, settings, outputBasePath, false);
+                var command = BuildFFmpegVBRCommand(audioFile, settings, outputBasePath, maxRateBps, forceUpmix);
                 await ExecuteFFmpegCommand(audioFile, command);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error in BuildAndRunFFmpeg: {ex.Message}");
+                Debug.WriteLine($"Error in BuildAndRunFFmpegWithVBR: {ex.Message}");
                 OnFileProcessed(audioFile, false);
             }
         }
 
         /// <summary>
-        /// Builds and runs FFmpeg command with upmix logic for mono-to-stereo conversion
+        /// Builds FFmpeg command with VBR quality settings and maxrate caps
         /// </summary>
-        private async Task BuildAndRunFFmpegWithUpmix(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath, bool applyTargetBitrate)
-        {
-            try
-            {
-                var command = BuildFFmpegCommand(audioFile, settings, outputBasePath, !applyTargetBitrate, true);
-                await ExecuteFFmpegCommand(audioFile, command);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error in BuildAndRunFFmpegWithUpmix: {ex.Message}");
-                OnFileProcessed(audioFile, false);
-            }
-        }
-
-        /// <summary>
-        /// Builds FFmpeg command string based on settings and options
-        /// </summary>
-        private string BuildFFmpegCommand(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath, bool useHighQuality = false, bool forceUpmix = false)
+        private string BuildFFmpegVBRCommand(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath, int maxRateBps, bool forceUpmix)
         {
             var baseName = Path.GetFileNameWithoutExtension(audioFile.SourcePath);
             var sanitizedBaseName = SanitizeFilename(baseName);
@@ -429,17 +444,12 @@ namespace Audiobook_Compressor.Services
                 filterArgs = "-af \"pan=mono|c0=0.5*c0+0.5*c1\"";
             }
 
-            // Build bitrate arguments
-            string bitrateArgs;
-            if (useHighQuality)
-            {
-                // Use high quality VBR instead of target bitrate (Focus 5.0.0 "high_quality_placeholder")
-                bitrateArgs = "-q:a 2";
-            }
-            else
-            {
-                bitrateArgs = $"-b:a {settings.TargetBitrate}";
-            }
+            // Build VBR quality arguments with maxrate cap
+            var maxRateFormatted = Settings.FormatBitrate(maxRateBps);
+            var bufSize = maxRateBps * 2; // Buffer size = 2x maxrate for VBR stability
+            var bufSizeFormatted = Settings.FormatBitrate(bufSize);
+            
+            string bitrateArgs = $"-q:a 2 -maxrate {maxRateFormatted} -bufsize {bufSizeFormatted}";
 
             // Build sample rate arguments
             string sampleRateArgs = "";
@@ -554,6 +564,162 @@ namespace Audiobook_Compressor.Services
         {
             // TODO: Implement logic to extract progress percentage from FFmpeg output
             return 0.1; // Return small progress value to indicate activity
+        }
+
+        /// <summary>
+        /// Determines if a file should be copied based on threshold settings
+        /// </summary>
+        private static bool ShouldCopyFile(DetailedFileInfo fileInfo, CompressionSettings settings)
+        {
+            if (!Settings.TryParseBitrate(settings.ConversionThreshold, out int threshold))
+                return false;
+
+            return fileInfo.Bitrate > 0 && fileInfo.Bitrate <= threshold;
+        }
+
+        /// <summary>
+        /// Copies a file to the output directory maintaining directory structure
+        /// </summary>
+        private async Task CopyFile(AudioFileInfo audioFile, string outputBasePath)
+        {
+            try
+            {
+                var sourceExt = Path.GetExtension(audioFile.SourcePath);
+                var baseName = Path.GetFileNameWithoutExtension(audioFile.SourcePath);
+                var sanitizedBaseName = SanitizeFilename(baseName);
+                var relativeDir = Path.GetDirectoryName(audioFile.RelativePath);
+                var outputDir = string.IsNullOrEmpty(relativeDir) ? outputBasePath : Path.Combine(outputBasePath, relativeDir);
+                
+                Directory.CreateDirectory(outputDir);
+                var destFile = Path.Combine(outputDir, sanitizedBaseName + sourceExt);
+                
+                await Task.Run(() => File.Copy(audioFile.SourcePath, destFile, true), _cancellationToken);
+                OnFileProcessed(audioFile, true);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error copying file: {ex.Message}");
+                OnFileProcessed(audioFile, false);
+            }
+        }
+
+        /// <summary>
+        /// Builds and runs FFmpeg command with the specified settings
+        /// </summary>
+        private async Task BuildAndRunFFmpeg(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath)
+        {
+            try
+            {
+                var command = BuildFFmpegCommand(audioFile, settings, outputBasePath, false);
+                await ExecuteFFmpegCommand(audioFile, command);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in BuildAndRunFFmpeg: {ex.Message}");
+                OnFileProcessed(audioFile, false);
+            }
+        }
+
+        /// <summary>
+        /// Builds and runs FFmpeg command with upmix logic for mono-to-stereo conversion
+        /// </summary>
+        private async Task BuildAndRunFFmpegWithUpmix(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath, bool applyTargetBitrate)
+        {
+            try
+            {
+                var command = BuildFFmpegCommand(audioFile, settings, outputBasePath, !applyTargetBitrate, true);
+                await ExecuteFFmpegCommand(audioFile, command);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error in BuildAndRunFFmpegWithUpmix: {ex.Message}");
+                OnFileProcessed(audioFile, false);
+            }
+        }
+
+        /// <summary>
+        /// Handles the special mono-to-stereo conversion logic from Focus 5.0.0
+        /// </summary>
+        private async Task HandleUpmixLogic(AudioFileInfo audioFile, DetailedFileInfo fileInfo, ProcessingContext context, string outputBasePath)
+        {
+            // 1. Estimate the upmixed bitrate
+            long estimatedStereoBitrate = fileInfo.Bitrate * 2;
+
+            // 2. Get the user's stereo conversion threshold from main settings
+            if (!Settings.TryParseBitrate(context.MainSettings.ConversionThreshold, out int stereoConversionThreshold))
+            {
+                stereoConversionThreshold = Settings.DefaultConversionThreshold;
+            }
+
+            Debug.WriteLine($"Upmix Logic: Current bitrate={fileInfo.Bitrate}, Estimated stereo={estimatedStereoBitrate}, Threshold={stereoConversionThreshold}");
+
+            // 3. Compare and decide
+            if (estimatedStereoBitrate >= stereoConversionThreshold)
+            {
+                // File needs full compression - upmix to stereo AND apply target bitrate
+                Debug.WriteLine("Action: Estimated bitrate above threshold - full compression with upmix.");
+                await BuildAndRunFFmpegWithUpmix(audioFile, context.MainSettings, outputBasePath, applyTargetBitrate: true);
+            }
+            else
+            {
+                // File is "good enough" - upmix to stereo but preserve quality
+                Debug.WriteLine("Action: Estimated bitrate below threshold - quality preservation with upmix.");
+                await BuildAndRunFFmpegWithUpmix(audioFile, context.MainSettings, outputBasePath, applyTargetBitrate: false);
+            }
+        }
+
+        /// <summary>
+        /// Builds FFmpeg command string based on settings and options
+        /// </summary>
+        private string BuildFFmpegCommand(AudioFileInfo audioFile, CompressionSettings settings, string outputBasePath, bool useHighQuality = false, bool forceUpmix = false)
+        {
+            var baseName = Path.GetFileNameWithoutExtension(audioFile.SourcePath);
+            var sanitizedBaseName = SanitizeFilename(baseName);
+            var relativeDir = Path.GetDirectoryName(audioFile.RelativePath);
+            var outputDir = string.IsNullOrEmpty(relativeDir) ? outputBasePath : Path.Combine(outputBasePath, relativeDir);
+            Directory.CreateDirectory(outputDir);
+            
+            var destFile = Path.Combine(outputDir, sanitizedBaseName + ".m4b");
+
+            // Build channel and filter arguments
+            string channelArgs = "";
+            string filterArgs = "";
+            
+            if (forceUpmix || settings.ChannelMode == "Stereo")
+            {
+                channelArgs = "-ac 2";
+                if (forceUpmix)
+                {
+                    // Upmix mono to stereo
+                    filterArgs = "-af \"pan=stereo|c0=c0|c1=c0\"";
+                }
+            }
+            else if (settings.ChannelMode == "Mono")
+            {
+                channelArgs = "-ac 1";
+                filterArgs = "-af \"pan=mono|c0=0.5*c0+0.5*c1\"";
+            }
+
+            // Build bitrate arguments
+            string bitrateArgs;
+            if (useHighQuality)
+            {
+                // Use high quality VBR instead of target bitrate (Focus 5.0.0 "high_quality_placeholder")
+                bitrateArgs = "-q:a 2";
+            }
+            else
+            {
+                bitrateArgs = $"-b:a {settings.TargetBitrate}";
+            }
+
+            // Build sample rate arguments
+            string sampleRateArgs = "";
+            if (Settings.TryParseSampleRate(settings.SampleRate, out int sampleRate))
+            {
+                sampleRateArgs = $"-ar {sampleRate}";
+            }
+
+            return $"-i \"{audioFile.SourcePath}\" -vn -c:a aac {bitrateArgs} {sampleRateArgs} {channelArgs} {filterArgs} -map_metadata 0 -map_chapters 0 -movflags +faststart -y -v info \"{destFile}\"";
         }
     }
 

@@ -1,12 +1,12 @@
 /*
     Filename: Settings.cs
-    Last Updated: 2025-08-05 13:32 CEST
-    Version: 1.2.C
+    Last Updated: 2025-08-06 08:39 CEST
+    Version: 1.2.D
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
-    Completed Focus 9.9.0 naming refactor: renamed DefaultMonoCopyThreshold to DefaultConversionThreshold for better clarity across all conversion scenarios.
+    Extended CompressionSettings with SubThresholdAction and CustomTargetBitrate properties to support Advanced panel sub-threshold behavior per Focus 5.0.4.
 */
 
 using System;
@@ -28,6 +28,8 @@ namespace Audiobook_Compressor.Models
         private string _conversionThreshold = Settings.FormatBitrate(Settings.DefaultConversionThreshold);
         private string _encodingType = Settings.DefaultBitrateControl;
         private string _passMode = "1-Pass";
+        private string _subThresholdAction = "Copy";
+        private string _customTargetBitrate = "48k";
 
         public string ChannelMode
         {
@@ -63,6 +65,24 @@ namespace Audiobook_Compressor.Models
         {
             get => _passMode;
             set { _passMode = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Action to take for files below threshold: "Copy", "DeferToRockit", "ConvertTo"
+        /// </summary>
+        public string SubThresholdAction
+        {
+            get => _subThresholdAction;
+            set { _subThresholdAction = value; OnPropertyChanged(); }
+        }
+
+        /// <summary>
+        /// Custom target bitrate for "ConvertTo" sub-threshold action
+        /// </summary>
+        public string CustomTargetBitrate
+        {
+            get => _customTargetBitrate;
+            set { _customTargetBitrate = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

@@ -1,12 +1,12 @@
 /*
     Filename: MainWindow.xaml.cs
-    Last Updated: 2025-08-05 13:32 CEST
-    Version: 1.2.C
+    Last Updated: 2025-08-06 08:39 CEST
+    Version: 1.2.D
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
-    Completed Focus 9.9.0 naming refactor: implemented XML settings migration with <Advanced> elements for consistency and backward compatibility with legacy <AdvancedOverride> elements.
+    Completed Focus 5.0.4 Advanced panel "Defer to Rockit" logic implementation with UI enhancements, data model extensions, XML serialization, and event handling for sub-threshold behavior controls.
 */
 
 using System;
@@ -605,6 +605,61 @@ namespace Audiobook_Compressor
                 if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
                     Settings.Current.StereoMode.AdvancedOverride.PassMode = cb.SelectedIndex == 1 ? "2-Pass" : "1-Pass";
             };
+
+            // Setup Advanced Sub-threshold Radio Button Event Handlers
+            // Mono Mode Advanced Sub-threshold handlers
+            MonoAdvancedCopyRadio.Checked += (s, e) => {
+                if (!_isUpdatingFromSettings)
+                    Settings.Current.MonoMode.AdvancedOverride.SubThresholdAction = "Copy";
+            };
+            MonoAdvancedDeferRadio.Checked += (s, e) => {
+                if (!_isUpdatingFromSettings)
+                    Settings.Current.MonoMode.AdvancedOverride.SubThresholdAction = "DeferToRockit";
+            };
+            MonoAdvancedConvertRadio.Checked += (s, e) => {
+                if (!_isUpdatingFromSettings)
+                    Settings.Current.MonoMode.AdvancedOverride.SubThresholdAction = "ConvertTo";
+            };
+            MonoAdvancedCustomBitrateComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                {
+                    if (cb.SelectedItem is ComboBoxItem item)
+                        Settings.Current.MonoMode.AdvancedOverride.CustomTargetBitrate = item.Content?.ToString() ?? cb.Text;
+                    else
+                        Settings.Current.MonoMode.AdvancedOverride.CustomTargetBitrate = cb.Text;
+                }
+            };
+            MonoAdvancedCustomBitrateComboBox.LostFocus += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.MonoMode.AdvancedOverride.CustomTargetBitrate = cb.Text;
+            };
+
+            // Stereo Mode Advanced Sub-threshold handlers
+            StereoAdvancedCopyRadio.Checked += (s, e) => {
+                if (!_isUpdatingFromSettings)
+                    Settings.Current.StereoMode.AdvancedOverride.SubThresholdAction = "Copy";
+            };
+            StereoAdvancedDeferRadio.Checked += (s, e) => {
+                if (!_isUpdatingFromSettings)
+                    Settings.Current.StereoMode.AdvancedOverride.SubThresholdAction = "DeferToRockit";
+            };
+            StereoAdvancedConvertRadio.Checked += (s, e) => {
+                if (!_isUpdatingFromSettings)
+                    Settings.Current.StereoMode.AdvancedOverride.SubThresholdAction = "ConvertTo";
+            };
+            StereoAdvancedCustomBitrateComboBox.SelectionChanged += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                {
+                    if (cb.SelectedItem is ComboBoxItem item)
+                        Settings.Current.StereoMode.AdvancedOverride.CustomTargetBitrate = item.Content?.ToString() ?? cb.Text;
+                    else
+                        Settings.Current.StereoMode.AdvancedOverride.CustomTargetBitrate = cb.Text;
+                }
+            };
+            StereoAdvancedCustomBitrateComboBox.LostFocus += (s, e) => {
+                if (!_isUpdatingFromSettings && s is System.Windows.Controls.ComboBox cb)
+                    Settings.Current.StereoMode.AdvancedOverride.CustomTargetBitrate = cb.Text;
+            };
         }
 
         private void Channels_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -941,6 +996,7 @@ namespace Audiobook_Compressor
                             if (!string.IsNullOrWhiteSpace(selectedAction))
                                 Settings.Current.MonoMode.SelectedAction = selectedAction;
                                 
+
                             LoadCompressionSettings(monoMode.Element("Main"), Settings.Current.MonoMode.Main);
                             // Migration support: try new element name first, fallback to legacy name
                             var advancedElement = monoMode.Element("Advanced") ?? monoMode.Element("AdvancedOverride");
@@ -955,6 +1011,7 @@ namespace Audiobook_Compressor
                             if (!string.IsNullOrWhiteSpace(selectedAction))
                                 Settings.Current.StereoMode.SelectedAction = selectedAction;
                                 
+
                             LoadCompressionSettings(stereoMode.Element("Main"), Settings.Current.StereoMode.Main);
                             // Migration support: try new element name first, fallback to legacy name
                             var advancedElement = stereoMode.Element("Advanced") ?? stereoMode.Element("AdvancedOverride");
@@ -1021,7 +1078,9 @@ namespace Audiobook_Compressor
                 new XElement("SampleRate", settings.SampleRate),
                 new XElement("ConversionThreshold", settings.ConversionThreshold),
                 new XElement("EncodingType", settings.EncodingType),
-                new XElement("PassMode", settings.PassMode)
+                new XElement("PassMode", settings.PassMode),
+                new XElement("SubThresholdAction", settings.SubThresholdAction),
+                new XElement("CustomTargetBitrate", settings.CustomTargetBitrate)
             );
         }
 
@@ -1105,7 +1164,11 @@ namespace Audiobook_Compressor
             MonoAdvancedThresholdComboBox.Text = monoAdvanced.ConversionThreshold;
             MonoAdvancedBitrateControlComboBox.SelectedItem = monoAdvanced.EncodingType;
             MonoAdvancedPassesComboBox.SelectedIndex = monoAdvanced.PassMode == "2-Pass" ? 1 : 0;
-            
+            // Restore sub-threshold behavior settings for Mono mode
+            MonoAdvancedCopyRadio.IsChecked = monoAdvanced.SubThresholdAction == "Copy";
+            MonoAdvancedDeferRadio.IsChecked = monoAdvanced.SubThresholdAction == "DeferToRockit";
+            MonoAdvancedConvertRadio.IsChecked = monoAdvanced.SubThresholdAction == "ConvertTo";
+            MonoAdvancedCustomBitrateComboBox.Text = monoAdvanced.CustomTargetBitrate;
             // Restore Stereo mode advanced override settings with updated control names
             var stereoAdvanced = Settings.Current.StereoMode.AdvancedOverride;
             StereoAdvancedChannelsComboBox.SelectedItem = stereoAdvanced.ChannelMode;
@@ -1114,6 +1177,12 @@ namespace Audiobook_Compressor
             StereoAdvancedThresholdComboBox.Text = stereoAdvanced.ConversionThreshold;
             StereoAdvancedBitrateControlComboBox.SelectedItem = stereoAdvanced.EncodingType;
             StereoAdvancedPassesComboBox.SelectedIndex = stereoAdvanced.PassMode == "2-Pass" ? 1 : 0;
+            
+            // Restore sub-threshold behavior settings for Stereo mode
+            StereoAdvancedCopyRadio.IsChecked = stereoAdvanced.SubThresholdAction == "Copy";
+            StereoAdvancedDeferRadio.IsChecked = stereoAdvanced.SubThresholdAction == "DeferToRockit";
+            StereoAdvancedConvertRadio.IsChecked = stereoAdvanced.SubThresholdAction == "ConvertTo";
+            StereoAdvancedCustomBitrateComboBox.Text = stereoAdvanced.CustomTargetBitrate;
         }
 
         private void LoadDefaultOutputPath()
@@ -1178,6 +1247,15 @@ namespace Audiobook_Compressor
             var passMode = targetElement.Element("PassMode")?.Value;
             if (!string.IsNullOrWhiteSpace(passMode))
                 settings.PassMode = passMode;
+
+            // Load new sub-threshold behavior properties
+            var subThresholdAction = targetElement.Element("SubThresholdAction")?.Value;
+            if (!string.IsNullOrWhiteSpace(subThresholdAction))
+                settings.SubThresholdAction = subThresholdAction;
+
+            var customTargetBitrate = targetElement.Element("CustomTargetBitrate")?.Value;
+            if (!string.IsNullOrWhiteSpace(customTargetBitrate))
+                settings.CustomTargetBitrate = customTargetBitrate;
         }
 
         private void SaveDefaultOutputPath()

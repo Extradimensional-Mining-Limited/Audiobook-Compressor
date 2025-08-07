@@ -1,6 +1,6 @@
 Filename: ChangelogExperimental.md  
-Last Updated: 2025-08-05 13:32 CEST
-Version: 1.2.C  
+Last Updated: 2025-08-06 08:39 CEST
+Version: 1.2.D  
 State: Experimental  
 Signed: Vanguard
 
@@ -16,6 +16,11 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.B: feat: Added ProcessAsException method for handling mismatched file types (stereo files in mono mode, mono files in stereo mode).
 - 1.2.B: feat: Implemented HandleUpmixLogic method for mono-to-stereo conversion with threshold-based quality decisions.
 - 1.2.B: feat: Added contextual settings integration where radio button states and advanced overrides directly influence processing behavior.
+- 1.2.D: feat: Advanced Panel Sub-threshold Behavior - Added Copy/Defer to Rockit/Convert to radio button controls in both Mono and Stereo advanced panels per Focus 5.0.4.
+- 1.2.D: feat: "Defer to Rockit" Quality Logic - Implemented intelligent quality-preserving VBR processing with dynamic maxrate caps for channel reduction/expansion scenarios.
+- 1.2.D: feat: Custom Bitrate Conversion - Added support for "Convert to:" option with user-specified target bitrate for sub-threshold files.
+- 1.2.D: feat: ProcessWithAdvancedLogic method in AudioProcessor for complete advanced panel decision tree including sub-threshold behavior routing.
+- 1.2.D: feat: VBR Command Generation - Added BuildFFmpegVBRCommand method with sophisticated maxrate and buffer size calculation for quality preservation.
 
 ### **Changed**
 - 1.2.A: refactor: Remove all conditional sync logic and session flags for main/advanced/mono/stereo settings. All ComboBox and related values are now simply persistent and user-driven. No automatic copying or inheritance between settings objects; values only change via user action.
@@ -43,5 +48,7 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.B: fix: Resolved critical architecture disconnect where UI settings had no effect on processing behavior.
 - 1.2.B: fix: Implemented proper JSON parsing in ProbeAudioFileAsync to populate AudioFileInfo.Bitrate property.
 - 1.2.C: fix: Applied naming convention refactor per Focus 8.0.2 and 9.9.0 - renamed DefaultMonoCopyThreshold to DefaultConversionThreshold, updated all UI panels and ComboBox controls to contextually appropriate names, and implemented seamless XML settings migration.
+- 1.2.D: fix: Fixed syntax error in CreateCompressionSettingsXml method where duplicate PassMode element was causing compilation issues.
+- 1.2.D: docs: UI alignment and spacing polish for advanced panels, ComboBox fine-tuning, and documentation compliance per SOP section 5.0. Signed: Orion
 
 **Note**: GetTime.exe failure reported - timestamp shows as TIMESTAMP_ERROR for version 1.2.B changes.

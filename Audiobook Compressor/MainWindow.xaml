@@ -1,12 +1,12 @@
 ﻿<!--
     Filename: MainWindow.xaml
-    Last Updated: 2025-08-05 13:32 CEST
-    Version: 1.2.C
+    Last Updated: 2025-08-07 10:15
+    Version: 1.2.D
     State: Experimental
-    Signed: Vanguard
+    Signed: Orion
 
     Synopsis:
-    Completed Focus 9.9.0 naming refactor: renamed UI panels and ComboBox controls for contextual clarity - all 18 advanced controls now use mode-appropriate naming (MonoAdvanced*/StereoAdvanced*).
+    UI alignment and spacing polish for advanced panels, ComboBox fine-tuning, and documentation compliance per SOP section 5.0.
 -->
 <Window x:Class="Audiobook_Compressor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -207,6 +207,34 @@
                                     <ComboBoxItem Content="1-Pass" IsSelected="True"/>
                                     <ComboBoxItem Content="2-Pass"/>
                                 </ComboBox>
+                                <!-- NEW: Sub-threshold behavior section -->
+                                <StackPanel Margin="0,5,0,0" HorizontalAlignment="Stretch" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}">
+                                    <TextBlock Text="For files below threshold:" FontWeight="SemiBold" Margin="0,4,5,5"/>
+                                    <Grid Margin="0,-1,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <RadioButton x:Name="MonoAdvancedCopyRadio" Content="Copy"
+                                                     GroupName="MonoAdvancedSubThresholdGroup" IsChecked="True" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="0"/>
+                                        <RadioButton x:Name="MonoAdvancedDeferRadio" Content="Defer to Rockit"
+                                                     GroupName="MonoAdvancedSubThresholdGroup" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="1"/>
+                                        <RadioButton x:Name="MonoAdvancedConvertRadio" Content="Convert to:"
+                                                     GroupName="MonoAdvancedSubThresholdGroup" Margin="0,0,5,0" VerticalAlignment="Center" Grid.Column="2"/>
+                                        <ComboBox x:Name="MonoAdvancedCustomBitrateComboBox" MinWidth="80" Height="28"
+                                                  VerticalAlignment="Center" Margin="2,-1,0,0" Grid.Column="3"
+                                                  IsEditable="True"
+                                                  Style="{StaticResource SettingsComboBoxStyle}"
+                                                  IsEnabled="{Binding IsChecked, ElementName=MonoAdvancedConvertRadio}">
+                                            <ComboBoxItem Content="48k"/>
+                                            <ComboBoxItem Content="64k"/>
+                                            <ComboBoxItem Content="96k"/>
+                                            <ComboBoxItem Content="128k"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
                             </WrapPanel>
                         </StackPanel>
                         <StackPanel x:Name="StereoModePanel" Visibility="Collapsed">
@@ -225,6 +253,34 @@
                                     <ComboBoxItem Content="1-Pass" IsSelected="True"/>
                                     <ComboBoxItem Content="2-Pass"/>
                                 </ComboBox>
+                                <!-- NEW: Sub-threshold behavior section -->
+                                <StackPanel Margin="0,5,0,0" HorizontalAlignment="Stretch" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}">
+                                    <TextBlock Text="For files below threshold:" FontWeight="SemiBold" Margin="0,4,5,5"/>
+                                    <Grid Margin="0,-1,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <RadioButton x:Name="StereoAdvancedCopyRadio" Content="Copy"
+                                                     GroupName="StereoAdvancedSubThresholdGroup" IsChecked="True" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="0"/>
+                                        <RadioButton x:Name="StereoAdvancedDeferRadio" Content="Defer to Rockit"
+                                                     GroupName="StereoAdvancedSubThresholdGroup" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="1"/>
+                                        <RadioButton x:Name="StereoAdvancedConvertRadio" Content="Convert to:"
+                                                     GroupName="StereoAdvancedSubThresholdGroup" Margin="0,0,5,0" VerticalAlignment="Center" Grid.Column="2"/>
+                                        <ComboBox x:Name="StereoAdvancedCustomBitrateComboBox" MinWidth="80" Height="28"
+                                                  VerticalAlignment="Center" Margin="2,-1,0,0" Grid.Column="3"
+                                                  IsEditable="True"
+                                                  Style="{StaticResource SettingsComboBoxStyle}"
+                                                  IsEnabled="{Binding IsChecked, ElementName=StereoAdvancedConvertRadio}">
+                                            <ComboBoxItem Content="48k"/>
+                                            <ComboBoxItem Content="64k"/>
+                                            <ComboBoxItem Content="96k"/>
+                                            <ComboBoxItem Content="128k"/>
+                                        </ComboBox>
+                                    </Grid>
+                                </StackPanel>
                             </WrapPanel>
                         </StackPanel>
                         <!-- Contextual Panels End -->
