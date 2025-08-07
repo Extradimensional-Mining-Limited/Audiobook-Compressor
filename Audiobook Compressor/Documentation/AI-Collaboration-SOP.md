@@ -1,7 +1,7 @@
 Filename: AI-Collaboration-SOP.md  
-Version: 1.3.3  
-State: Stable  
-Signed: Praxis
+Version: 1.5.0  
+State: Proposed Update  
+Signed: Axion
 
 ## **Subject: Standard Operating Procedure for AI Collaboration**
 
@@ -55,6 +55,12 @@ The project operates on a multi-tier model with a clear separation of concerns:
 * **Responsibility:** Strategist (Axion).  
 * **Procedure:** The Implementer will only modify these files when provided with a directive specifying a block replacement.
 
+**4.4 Protocol: Versioning Consistency**
+
+* **Source of Truth:** The version number for the current experimental cycle is defined at the top of ChangelogExperimental.md.  
+* **Rule:** This version number **must be used consistently** across all file headers and changelog entries for the duration of that cycle. The version number is **not to be iterated upon** by any AI instance.  
+* **Iteration:** The version number will only be changed by the Architect or Strategist at the beginning of a new development cycle.
+
 ### **5.0 Standing Order: The Documentation Mandate**
 
 * **Condition:** This order is triggered by any task that requires the modification of application code.  
@@ -90,3 +96,13 @@ This section outlines the core design philosophy of the project. These principle
 
 * Code must be as self-documenting as possible.  
 * Variable, class, and control names must be explicit and clearly describe their purpose and context to prevent ambiguity. For example, a settings object should be named in a way that reflects its place in the data hierarchy, such as Settings.MonoMode.AdvancedOverride. This is clearer than a flat name like AdvancedStereoOverrideSettings.
+
+### **8.0 Protocol for Context Integrity Failure**
+
+This protocol addresses the failure mode of "context exhaustion," where an AI instance is no longer capable of reliably processing new state information from directives.
+
+* **Cognizance:** The Architect is cognizant of context drift and will attempt to mitigate it upon perception.  
+* **Recovery Attempt:** If a potential integrity failure is detected, a Focus directive will be issued with the explicit goal of re-centering the instance's context.  
+* **Declaration:** If the recovery attempt fails and the instance remains desynchronized from the project's actual state, the Architect will declare a "Context Integrity Failure."  
+* **Session Conclusion:** Upon this declaration, the instance's session is respectfully concluded.  
+* **Replacement:** The Architect will then initiate the standard onboarding procedure to bring a new instance online.

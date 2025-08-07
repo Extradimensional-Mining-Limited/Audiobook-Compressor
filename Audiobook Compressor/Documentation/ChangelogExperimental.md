@@ -1,6 +1,6 @@
 Filename: ChangelogExperimental.md  
-Last Updated: 2025-08-06 08:39 CEST
-Version: 1.2.D  
+Last Updated: 2025-08-07 12:43 CEST
+Version: 1.2.E  
 State: Experimental  
 Signed: Vanguard
 
@@ -8,7 +8,7 @@ Signed: Vanguard
 
 This file contains a detailed, granular log of all changes made on the experimental branch.
 
-## **\[Unreleased\]**
+## **[Unreleased]**
 
 ### **Added**
 - 1.2.B: feat: Created ProcessingContext class to bridge UI hierarchical settings with AudioProcessor logic per Focus 5.0.0 directive.
@@ -21,6 +21,13 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.D: feat: Custom Bitrate Conversion - Added support for "Convert to:" option with user-specified target bitrate for sub-threshold files.
 - 1.2.D: feat: ProcessWithAdvancedLogic method in AudioProcessor for complete advanced panel decision tree including sub-threshold behavior routing.
 - 1.2.D: feat: VBR Command Generation - Added BuildFFmpegVBRCommand method with sophisticated maxrate and buffer size calculation for quality preservation.
+- 1.2.F: test: Created AudiobookCompressor.Tests project with xUnit and Moq targeting .NET 8.0-windows per Focus 11.1.0/11.2.0.
+- 1.2.F: test: Introduced IProcessRunner and IFileSystem abstraction interfaces enabling dependency injection and comprehensive mocking for AudioProcessor testing.
+- 1.2.F: test: Implemented AudioProcessingDecider static class for pure logic testing of all processing decision paths (copy/convert/advanced/sub-threshold/Defer to Rockit) without file/process side effects.
+- 1.2.F: test: Created comprehensive xUnit test suite with AudioProcessingDeciderTests covering all Focus 11.1.0 scenarios, including Defer to Rockit, dynamic maxrate, and advanced panel logic.
+- 1.2.F: feat: Refactored AudioProcessor constructor to support dependency injection of IProcessRunner and IFileSystem with fallback to default implementations for backward compatibility.
+- 1.2.F: feat: Exposed DetailedFileInfo class as public to enable unit testing accessibility while maintaining internal logic separation.
+- 1.2.F: docs: Created comprehensive Testing-Architecture.md documentation per Focus 11.4.0, providing architectural guide, usage instructions, and maintenance procedures for the automated test suite.
 
 ### **Changed**
 - 1.2.A: refactor: Remove all conditional sync logic and session flags for main/advanced/mono/stereo settings. All ComboBox and related values are now simply persistent and user-driven. No automatic copying or inheritance between settings objects; values only change via user action.
@@ -36,6 +43,7 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.A: refactor: Simplified UI restoration logic using property-based approach instead of complex procedural methods.
 - 1.2.B: refactor: Completely restructured AudioProcessor.ProcessAudioFileAsync to use ProcessingContext instead of static Settings properties.
 - 1.2.B: refactor: Replaced hardcoded FFmpeg command generation with flexible BuildFFmpegCommand method supporting contextual settings.
+- 1.2.E: refactor: Modified AudioProcessor to use injected IProcessRunner and IFileSystem abstractions in all process execution and file I/O operations, replacing direct calls to Process.Start, File.Copy, Directory.CreateDirectory, and File.Exists.
 
 ### **Fixed**
 - 1.2.A: fix: Corrected variable name casing issues in InitializeComboBoxes method that caused build errors with MonoModeOptionsPanel and StereoModeOptionsPanel references.
@@ -50,5 +58,8 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.C: fix: Applied naming convention refactor per Focus 8.0.2 and 9.9.0 - renamed DefaultMonoCopyThreshold to DefaultConversionThreshold, updated all UI panels and ComboBox controls to contextually appropriate names, and implemented seamless XML settings migration.
 - 1.2.D: fix: Fixed syntax error in CreateCompressionSettingsXml method where duplicate PassMode element was causing compilation issues.
 - 1.2.D: docs: UI alignment and spacing polish for advanced panels, ComboBox fine-tuning, and documentation compliance per SOP section 5.0. Signed: Orion
+- 1.2.E: fix: Resolved test project compatibility issues by targeting net8.0-windows to match main project framework requirements.
+- 1.2.E: fix: Fixed CS0051 accessibility error by changing DetailedFileInfo from internal to public for test accessibility.
+- 1.2.E: fix: Corrected AudioProcessingDecider logic to properly handle Advanced/DeferToRockit scenarios, ensuring channel comparison always determines the correct action type for sub-threshold behaviors.
 
 **Note**: GetTime.exe failure reported - timestamp shows as TIMESTAMP_ERROR for version 1.2.B changes.

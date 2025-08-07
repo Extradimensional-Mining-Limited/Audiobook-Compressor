@@ -1,12 +1,12 @@
 /*
     Filename: AudioProcessor.cs
-    Last Updated: 2025-08-06 08:39 CEST
-    Version: 1.2.D
+    Last Updated: 2025-08-07 12:43 CEST
+    Version: 1.2.F
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
-    Implemented Focus 5.0.4 Advanced panel "Defer to Rockit" logic with quality-preserving VBR processing, sub-threshold behavior controls, and custom bitrate conversion options.
+    Core audio processing service with dependency injection support for comprehensive unit testing and Focus 5.0.4 Advanced panel "Defer to Rockit" logic implementation.
 */
 
 using System;
@@ -18,6 +18,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Audiobook_Compressor.Models;
 using System.Text.RegularExpressions;
+using Audiobook_Compressor.Services;
 
 namespace Audiobook_Compressor.Services
 {
@@ -39,12 +40,16 @@ namespace Audiobook_Compressor.Services
         private readonly string _ffmpegPath;
         private readonly string _ffprobePath;
         private readonly CancellationToken _cancellationToken;
+        private readonly IProcessRunner _processRunner;
+        private readonly IFileSystem _fileSystem;
 
-        public AudioProcessor(CancellationToken cancellationToken = default)
+        public AudioProcessor(CancellationToken cancellationToken = default, IProcessRunner? processRunner = null, IFileSystem? fileSystem = null)
         {
             _ffmpegPath = Constants.FFmpegPath;
             _ffprobePath = Constants.FFprobePath;
             _cancellationToken = cancellationToken;
+            _processRunner = processRunner ?? new DefaultProcessRunner();
+            _fileSystem = fileSystem ?? new DefaultFileSystem();
         }
 
         /// <summary>
@@ -64,7 +69,7 @@ namespace Audiobook_Compressor.Services
                     CreateNoWindow = true
                 };
 
-                using var process = Process.Start(startInfo);
+                using var process = _processRunner.Start(startInfo);
                 if (process == null)
                 {
                     Debug.WriteLine("Failed to start FFprobe process");
@@ -189,7 +194,7 @@ namespace Audiobook_Compressor.Services
                     CreateNoWindow = true
                 };
 
-                using var probeProcess = Process.Start(probeStartInfo);
+                using var probeProcess = _processRunner.Start(probeStartInfo);
                 if (probeProcess == null)
                 {
                     Debug.WriteLine("Failed to start FFprobe process");
@@ -421,7 +426,7 @@ namespace Audiobook_Compressor.Services
             var sanitizedBaseName = SanitizeFilename(baseName);
             var relativeDir = Path.GetDirectoryName(audioFile.RelativePath);
             var outputDir = string.IsNullOrEmpty(relativeDir) ? outputBasePath : Path.Combine(outputBasePath, relativeDir);
-            Directory.CreateDirectory(outputDir);
+            _fileSystem.CreateDirectory(outputDir);
             
             var destFile = Path.Combine(outputDir, sanitizedBaseName + ".m4b");
 
@@ -476,7 +481,7 @@ namespace Audiobook_Compressor.Services
                 CreateNoWindow = true
             };
 
-            using var ffmpegProcess = Process.Start(ffmpegStartInfo);
+            using var ffmpegProcess = _processRunner.Start(ffmpegStartInfo);
             if (ffmpegProcess == null)
             {
                 Debug.WriteLine("Failed to start FFmpeg process");
@@ -504,7 +509,7 @@ namespace Audiobook_Compressor.Services
 
             // Verify output file was created successfully
             var outputFile = ExtractOutputFileFromCommand(ffmpegArgs);
-            if (ffmpegProcess.ExitCode != 0 || !File.Exists(outputFile) || new FileInfo(outputFile).Length == 0)
+            if (ffmpegProcess.ExitCode != 0 || !_fileSystem.Exists(outputFile) || _fileSystem.GetFileLength(outputFile) == 0)
             {
                 Debug.WriteLine($"FFmpeg failed or produced an invalid file for {audioFile.SourcePath}");
                 OnFileProcessed(audioFile, false);
@@ -590,10 +595,10 @@ namespace Audiobook_Compressor.Services
                 var relativeDir = Path.GetDirectoryName(audioFile.RelativePath);
                 var outputDir = string.IsNullOrEmpty(relativeDir) ? outputBasePath : Path.Combine(outputBasePath, relativeDir);
                 
-                Directory.CreateDirectory(outputDir);
+                _fileSystem.CreateDirectory(outputDir);
                 var destFile = Path.Combine(outputDir, sanitizedBaseName + sourceExt);
                 
-                await Task.Run(() => File.Copy(audioFile.SourcePath, destFile, true), _cancellationToken);
+                await Task.Run(() => _fileSystem.Copy(audioFile.SourcePath, destFile, true), _cancellationToken);
                 OnFileProcessed(audioFile, true);
             }
             catch (Exception ex)
@@ -677,7 +682,7 @@ namespace Audiobook_Compressor.Services
             var sanitizedBaseName = SanitizeFilename(baseName);
             var relativeDir = Path.GetDirectoryName(audioFile.RelativePath);
             var outputDir = string.IsNullOrEmpty(relativeDir) ? outputBasePath : Path.Combine(outputBasePath, relativeDir);
-            Directory.CreateDirectory(outputDir);
+            _fileSystem.CreateDirectory(outputDir);
             
             var destFile = Path.Combine(outputDir, sanitizedBaseName + ".m4b");
 
@@ -726,7 +731,7 @@ namespace Audiobook_Compressor.Services
     /// <summary>
     /// Detailed file information for processing decisions
     /// </summary>
-    internal class DetailedFileInfo
+    public class DetailedFileInfo
     {
         public int Bitrate { get; init; }
         public int Channels { get; init; }
