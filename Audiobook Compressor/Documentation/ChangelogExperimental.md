@@ -1,6 +1,6 @@
 Filename: ChangelogExperimental.md  
 Last Updated: 2025-08-09 13:15 CEST
-Version: 1.2.H  
+Version: 1.2.I  
 State: Experimental  
 Signed: Vanguard
 
