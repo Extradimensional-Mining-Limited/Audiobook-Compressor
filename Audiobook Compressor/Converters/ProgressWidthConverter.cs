@@ -1,14 +1,13 @@
 /*
-    Filename: ProgressWidthConverter.cs
-    Last Updated: 2025-07-25 03:32
-    Version: 1.2.0
-    State: Stable
-    Signed: User
+    Filename: Converters\ProgressWidthConverter.cs
+    Last Updated: 2025-08-09 12:30 CEST
+    Version: 1.2.G
+    State: Experimental
+    Signed: Vanguard
 
     Synopsis:
-    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
-    - Documentation and changelog discipline enforced for release.
-    - No code changes since last version except header and documentation updates.
+    Converts progress values to pixel widths for status bar progress display per Focus 14.1.0 Phase 2.
+    Migrated to Converters namespace for MVVM architecture consistency.
 */
 
 using System;
@@ -17,7 +16,7 @@ using System.Windows.Data;
 using System.Diagnostics;
 using System.Windows;
 
-namespace Audiobook_Compressor
+namespace Audiobook_Compressor.Converters
 {
     /// <summary>
     /// Converts a total width and progress value (0-1) into an actual pixel width for progress bars.

@@ -1,12 +1,13 @@
 ﻿<!--
     Filename: MainWindow.xaml
-    Last Updated: 2025-08-07 10:15
-    Version: 1.2.D
+    Last Updated: 2025-08-09 12:30 CEST
+    Version: 1.2.G
     State: Experimental
-    Signed: Orion
+    Signed: Vanguard
 
     Synopsis:
-    UI alignment and spacing polish for advanced panels, ComboBox fine-tuning, and documentation compliance per SOP section 5.0.
+    MVVM data binding implementation - Phase 3 basic controls conversion per Focus 14.1.0.
+    Converting from event-driven code-behind to pure XAML data binding with MainViewModel.
 -->
 <Window x:Class="Audiobook_Compressor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -14,6 +15,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Audiobook_Compressor"
+        xmlns:converters="clr-namespace:Audiobook_Compressor.Converters"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
         Title="EXML Rockit" Width="600" MinHeight="250" MaxHeight="800" MinWidth="500"
@@ -21,8 +23,13 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
+        <!-- Updated Converters -->
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
-        <local:ProgressWidthConverter x:Key="ProgressWidthConverter"/>
+        <converters:ProgressWidthConverter x:Key="ProgressWidthConverter"/>
+        <converters:BitrateValidationConverter x:Key="BitrateValidationConverter"/>
+        <converters:RadioButtonToStringConverter x:Key="RadioButtonToStringConverter"/>
+        
+        <!-- Existing Style Resources -->
         <SolidColorBrush x:Key="SubtleTextColor" Color="Gray"/>
         <SolidColorBrush x:Key="ProgressBarFillColor" Color="#FFE0E0E0"/>
         <Style TargetType="Button">
@@ -145,6 +152,7 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
+            <!-- Phase 3: Basic Controls with Data Binding -->
             <StackPanel Grid.Row="0">
                 <Label Content="Source Library:" FontWeight="SemiBold"/>
                 <Grid>
@@ -152,8 +160,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="SourcePathTextBox" Grid.Column="0" Margin="0,0,5,0" Padding="5" VerticalContentAlignment="Center"/>
-                    <Button x:Name="SourceBrowseButton" Grid.Column="1" Content="Browse..."/>
+                    <TextBox Grid.Column="0" 
+                             Text="{Binding Settings.SourcePath, Mode=TwoWay}"
+                             Margin="0,0,5,0" Padding="5" 
+                             VerticalContentAlignment="Center"/>
+                    <Button Grid.Column="1" 
+                            Command="{Binding BrowseSourceCommand}"
+                            Content="Browse..."/>
                 </Grid>
 
                 <Label Content="Output Folder:" Margin="0,10,0,0" FontWeight="SemiBold"/>
@@ -162,15 +175,19 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="OutputPathTextBox" Grid.Column="0" Margin="0,0,5,0" Padding="5" VerticalContentAlignment="Center"/>
-                    <Button x:Name="OutputBrowseButton" Grid.Column="1" Content="Browse..."/>
+                    <TextBox Grid.Column="0" 
+                             Text="{Binding Settings.OutputPath, Mode=TwoWay}"
+                             Margin="0,0,5,0" Padding="5" 
+                             VerticalContentAlignment="Center"/>
+                    <Button Grid.Column="1" 
+                            Command="{Binding BrowseOutputCommand}"
+                            Content="Browse..."/>
                 </Grid>
             </StackPanel>
 
             <Expander x:Name="SettingsExpander" Grid.Row="1" Margin="0,20,0,5" IsExpanded="False">
                 <Expander.Header>
-                    <TextBlock x:Name="SettingsSummaryText" 
-                             Text="Mono | 48k | 22050Hz | 64k Threshold | ABR | 1-Pass" 
+                    <TextBlock Text="{Binding SettingsSummary}" 
                              Foreground="{StaticResource SubtleTextColor}"
                              TextTrimming="CharacterEllipsis"
                              MaxWidth="500"/>
@@ -178,36 +195,73 @@
                 <Border BorderBrush="#FFD3D3D3" BorderThickness="1" CornerRadius="3" Padding="10" Margin="0,5,0,0">
                     <StackPanel>
                         <TextBlock Text="Compression Settings:" FontWeight="SemiBold" Margin="0,5,0,5"/>
-                        <!-- Row 1: Main Settings -->
+                        <!-- Phase 4: Main Settings ComboBoxes (to be converted) -->
                         <WrapPanel>
-                            <ComboBox x:Name="ChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                            <ComboBox x:Name="BitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                            <ComboBox x:Name="SampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                            <ComboBox x:Name="ThresholdComboBox" MinWidth="80" Margin="3" ToolTip="Copy mono files instead of re-encoding if their bitrate is below this value." Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                            <ComboBox x:Name="BitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                            <ComboBox x:Name="PassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                                <ComboBoxItem Content="1-Pass" IsSelected="True"/>
-                                <ComboBoxItem Content="2-Pass"/>
-                            </ComboBox>
+                            <ComboBox SelectedItem="{Binding SelectedChannel, Mode=TwoWay}"
+                                      ItemsSource="{Binding ChannelOptions}"
+                                      MinWidth="80" Margin="3" 
+                                      Style="{StaticResource SettingsComboBoxStyle}"/>
+                            <ComboBox Text="{Binding SelectedBitrate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                      ItemsSource="{Binding BitrateOptions}"
+                                      MinWidth="80" Margin="3" 
+                                      Style="{StaticResource SettingsComboBoxStyle}" 
+                                      IsEditable="True"/>
+                            <ComboBox SelectedItem="{Binding SelectedSampleRate, Mode=TwoWay}"
+                                      ItemsSource="{Binding SampleRateOptions}"
+                                      MinWidth="90" Margin="3" 
+                                      Style="{StaticResource SettingsComboBoxStyle}"/>
+                            <ComboBox Text="{Binding SelectedThreshold, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                      ItemsSource="{Binding BitrateOptions}"
+                                      MinWidth="80" Margin="3" 
+                                      ToolTip="Copy mono files instead of re-encoding if their bitrate is below this value." 
+                                      Style="{StaticResource SettingsComboBoxStyle}" 
+                                      IsEditable="True"/>
+                            <ComboBox SelectedItem="{Binding SelectedEncodingType, Mode=TwoWay}"
+                                      ItemsSource="{Binding EncodingTypeOptions}"
+                                      MinWidth="80" Margin="3" 
+                                      Style="{StaticResource SettingsComboBoxStyle}"/>
+                            <ComboBox SelectedItem="{Binding SelectedPassMode, Mode=TwoWay}"
+                                      ItemsSource="{Binding PassModeOptions}"
+                                      MinWidth="80" Margin="3" 
+                                      IsEnabled="{Binding IsPassModeEnabled}"
+                                      Style="{StaticResource SettingsComboBoxStyle}"/>
                         </WrapPanel>
-                        <!-- Row 2: Contextual Radio Buttons and Override Panels -->
-                        <StackPanel x:Name="MonoModePanel" Visibility="Collapsed">
+                        <!-- Phase 4: Radio Button Groups (to be converted) -->
+                        <StackPanel Visibility="{Binding IsMonoModeVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                             <WrapPanel Margin="0,10,0,0">
-                                <RadioButton x:Name="MonoCopyStereoRadio" Content="Copy stereo files" GroupName="MonoModeGroup" Margin="0,0,10,0"/>
-                                <RadioButton x:Name="MonoConvertStereoRadio" Content="Convert stereo to mono" GroupName="MonoModeGroup" IsChecked="True" Margin="0,0,10,0"/>
-                                <RadioButton x:Name="MonoAdvancedRadio" Content="Advanced..." GroupName="MonoModeGroup"/>
+                                <RadioButton IsChecked="{Binding IsMonoCopySelected, Mode=TwoWay}"
+                                           Content="Copy stereo files" 
+                                           GroupName="MonoModeGroup" Margin="0,0,10,0"/>
+                                <RadioButton IsChecked="{Binding IsMonoConvertSelected, Mode=TwoWay}"
+                                           Content="Convert stereo to mono" 
+                                           GroupName="MonoModeGroup" Margin="0,0,10,0"/>
+                                <RadioButton IsChecked="{Binding IsMonoAdvancedSelected, Mode=TwoWay}"
+                                           Content="Advanced..." 
+                                           GroupName="MonoModeGroup"/>
                             </WrapPanel>
-                            <WrapPanel x:Name="MonoModeAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
-                                <ComboBox x:Name="MonoAdvancedChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="MonoAdvancedBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="MonoAdvancedSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="MonoAdvancedThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="MonoAdvancedBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="MonoAdvancedPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                                    <ComboBoxItem Content="1-Pass" IsSelected="True"/>
-                                    <ComboBoxItem Content="2-Pass"/>
-                                </ComboBox>
-                                <!-- NEW: Sub-threshold behavior section -->
+                            <!-- Advanced Panel with Conditional Visibility -->
+                            <WrapPanel Visibility="{Binding IsMonoAdvancedPanelVisible, Converter={StaticResource BoolToVisibilityConverter}}" 
+                                       Margin="0,10,0,0">
+                                <!-- Phase 4: Advanced ComboBoxes (to be converted) -->
+                                <ComboBox SelectedItem="{Binding MonoAdvancedSettings.ChannelMode, Mode=TwoWay}"
+                                          ItemsSource="{Binding ChannelOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox Text="{Binding MonoAdvancedSettings.TargetBitrate, Mode=TwoWay}"
+                                          ItemsSource="{Binding BitrateOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox SelectedItem="{Binding MonoAdvancedSettings.SampleRate, Mode=TwoWay}"
+                                          ItemsSource="{Binding SampleRateOptions}"
+                                          MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox Text="{Binding MonoAdvancedSettings.ConversionThreshold, Mode=TwoWay}"
+                                          ItemsSource="{Binding BitrateOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox SelectedItem="{Binding MonoAdvancedSettings.EncodingType, Mode=TwoWay}"
+                                          ItemsSource="{Binding EncodingTypeOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox SelectedItem="{Binding MonoAdvancedSettings.PassMode, Mode=TwoWay}"
+                                          ItemsSource="{Binding PassModeOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <!-- Sub-threshold behavior section -->
                                 <StackPanel Margin="0,5,0,0" HorizontalAlignment="Stretch" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}">
                                     <TextBlock Text="For files below threshold:" FontWeight="SemiBold" Margin="0,4,5,5"/>
                                     <Grid Margin="0,-1,0,0">
@@ -217,17 +271,32 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <RadioButton x:Name="MonoAdvancedCopyRadio" Content="Copy"
-                                                     GroupName="MonoAdvancedSubThresholdGroup" IsChecked="True" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="0"/>
-                                        <RadioButton x:Name="MonoAdvancedDeferRadio" Content="Defer to Rockit"
-                                                     GroupName="MonoAdvancedSubThresholdGroup" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="1"/>
-                                        <RadioButton x:Name="MonoAdvancedConvertRadio" Content="Convert to:"
-                                                     GroupName="MonoAdvancedSubThresholdGroup" Margin="0,0,5,0" VerticalAlignment="Center" Grid.Column="2"/>
-                                        <ComboBox x:Name="MonoAdvancedCustomBitrateComboBox" MinWidth="80" Height="28"
-                                                  VerticalAlignment="Center" Margin="2,-1,0,0" Grid.Column="3"
+                                        <RadioButton Content="Copy" Grid.Column="0"
+                                                     IsChecked="{Binding Path=MonoAdvancedSettings.SubThresholdAction, 
+                                                                 Converter={StaticResource RadioButtonToStringConverter}, 
+                                                                 ConverterParameter=Copy, Mode=TwoWay}"
+                                                     GroupName="MonoAdvancedSubThresholdGroup" 
+                                                     Margin="0,0,15,0" VerticalAlignment="Center"/>
+                                        <RadioButton Content="Defer to Rockit" Grid.Column="1"
+                                                     IsChecked="{Binding Path=MonoAdvancedSettings.SubThresholdAction, 
+                                                                 Converter={StaticResource RadioButtonToStringConverter}, 
+                                                                 ConverterParameter=DeferToRockit, Mode=TwoWay}"
+                                                     GroupName="MonoAdvancedSubThresholdGroup" 
+                                                     Margin="0,0,15,0" VerticalAlignment="Center"/>
+                                        <RadioButton Content="Convert to:" Grid.Column="2"
+                                                     IsChecked="{Binding Path=MonoAdvancedSettings.SubThresholdAction, 
+                                                                 Converter={StaticResource RadioButtonToStringConverter}, 
+                                                                 ConverterParameter=ConvertTo, Mode=TwoWay}"
+                                                     GroupName="MonoAdvancedSubThresholdGroup" 
+                                                     Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                        <ComboBox Text="{Binding MonoAdvancedSettings.CustomTargetBitrate, Mode=TwoWay}"
+                                                  IsEnabled="{Binding Path=MonoAdvancedSettings.SubThresholdAction, 
+                                                              Converter={StaticResource RadioButtonToStringConverter}, 
+                                                              ConverterParameter=ConvertTo}"
+                                                  Grid.Column="3" MinWidth="80" Height="28"
+                                                  VerticalAlignment="Center" Margin="2,-1,0,0"
                                                   IsEditable="True"
-                                                  Style="{StaticResource SettingsComboBoxStyle}"
-                                                  IsEnabled="{Binding IsChecked, ElementName=MonoAdvancedConvertRadio}">
+                                                  Style="{StaticResource SettingsComboBoxStyle}">
                                             <ComboBoxItem Content="48k"/>
                                             <ComboBoxItem Content="64k"/>
                                             <ComboBoxItem Content="96k"/>
@@ -237,23 +306,40 @@
                                 </StackPanel>
                             </WrapPanel>
                         </StackPanel>
-                        <StackPanel x:Name="StereoModePanel" Visibility="Collapsed">
+                        <StackPanel Visibility="{Binding IsStereoModeVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                             <WrapPanel Margin="0,10,0,0">
-                                <RadioButton x:Name="StereoCopyMonoRadio" Content="Copy mono files" GroupName="StereoModeGroup" IsChecked="True" Margin="0,0,10,0"/>
-                                <RadioButton x:Name="StereoConvertMonoRadio" Content="Convert mono to stereo" GroupName="StereoModeGroup" Margin="0,0,10,0"/>
-                                <RadioButton x:Name="StereoAdvancedRadio" Content="Advanced..." GroupName="StereoModeGroup"/>
+                                <RadioButton IsChecked="{Binding IsStereoCopySelected, Mode=TwoWay}"
+                                           Content="Copy mono files" 
+                                           GroupName="StereoModeGroup" Margin="0,0,10,0"/>
+                                <RadioButton IsChecked="{Binding IsStereoConvertSelected, Mode=TwoWay}"
+                                           Content="Convert mono to stereo" 
+                                           GroupName="StereoModeGroup" Margin="0,0,10,0"/>
+                                <RadioButton IsChecked="{Binding IsStereoAdvancedSelected, Mode=TwoWay}"
+                                           Content="Advanced..." 
+                                           GroupName="StereoModeGroup"/>
                             </WrapPanel>
-                            <WrapPanel x:Name="StereoModeAdvancedPanel" Visibility="Collapsed" Margin="0,10,0,0">
-                                <ComboBox x:Name="StereoAdvancedChannelsComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="StereoAdvancedBitrateComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="StereoAdvancedSampleRateComboBox" MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="StereoAdvancedThresholdComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
-                                <ComboBox x:Name="StereoAdvancedBitrateControlComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox x:Name="StereoAdvancedPassesComboBox" MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}">
-                                    <ComboBoxItem Content="1-Pass" IsSelected="True"/>
-                                    <ComboBoxItem Content="2-Pass"/>
-                                </ComboBox>
-                                <!-- NEW: Sub-threshold behavior section -->
+                            <WrapPanel Visibility="{Binding IsStereoAdvancedPanelVisible, Converter={StaticResource BoolToVisibilityConverter}}" 
+                                       Margin="0,10,0,0">
+                                <!-- Phase 4: Stereo Advanced ComboBoxes -->
+                                <ComboBox SelectedItem="{Binding StereoAdvancedSettings.ChannelMode, Mode=TwoWay}"
+                                          ItemsSource="{Binding ChannelOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox Text="{Binding StereoAdvancedSettings.TargetBitrate, Mode=TwoWay}"
+                                          ItemsSource="{Binding BitrateOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox SelectedItem="{Binding StereoAdvancedSettings.SampleRate, Mode=TwoWay}"
+                                          ItemsSource="{Binding SampleRateOptions}"
+                                          MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox Text="{Binding StereoAdvancedSettings.ConversionThreshold, Mode=TwoWay}"
+                                          ItemsSource="{Binding BitrateOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
+                                <ComboBox SelectedItem="{Binding StereoAdvancedSettings.EncodingType, Mode=TwoWay}"
+                                          ItemsSource="{Binding EncodingTypeOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <ComboBox SelectedItem="{Binding StereoAdvancedSettings.PassMode, Mode=TwoWay}"
+                                          ItemsSource="{Binding PassModeOptions}"
+                                          MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
+                                <!-- Sub-threshold behavior section -->
                                 <StackPanel Margin="0,5,0,0" HorizontalAlignment="Stretch" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=WrapPanel}}">
                                     <TextBlock Text="For files below threshold:" FontWeight="SemiBold" Margin="0,4,5,5"/>
                                     <Grid Margin="0,-1,0,0">
@@ -263,17 +349,32 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <RadioButton x:Name="StereoAdvancedCopyRadio" Content="Copy"
-                                                     GroupName="StereoAdvancedSubThresholdGroup" IsChecked="True" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="0"/>
-                                        <RadioButton x:Name="StereoAdvancedDeferRadio" Content="Defer to Rockit"
-                                                     GroupName="StereoAdvancedSubThresholdGroup" Margin="0,0,15,0" VerticalAlignment="Center" Grid.Column="1"/>
-                                        <RadioButton x:Name="StereoAdvancedConvertRadio" Content="Convert to:"
-                                                     GroupName="StereoAdvancedSubThresholdGroup" Margin="0,0,5,0" VerticalAlignment="Center" Grid.Column="2"/>
-                                        <ComboBox x:Name="StereoAdvancedCustomBitrateComboBox" MinWidth="80" Height="28"
-                                                  VerticalAlignment="Center" Margin="2,-1,0,0" Grid.Column="3"
+                                        <RadioButton Content="Copy" Grid.Column="0"
+                                                     IsChecked="{Binding Path=StereoAdvancedSettings.SubThresholdAction, 
+                                                                 Converter={StaticResource RadioButtonToStringConverter}, 
+                                                                 ConverterParameter=Copy, Mode=TwoWay}"
+                                                     GroupName="StereoAdvancedSubThresholdGroup" 
+                                                     Margin="0,0,15,0" VerticalAlignment="Center"/>
+                                        <RadioButton Content="Defer to Rockit" Grid.Column="1"
+                                                     IsChecked="{Binding Path=StereoAdvancedSettings.SubThresholdAction, 
+                                                                 Converter={StaticResource RadioButtonToStringConverter}, 
+                                                                 ConverterParameter=DeferToRockit, Mode=TwoWay}"
+                                                     GroupName="StereoAdvancedSubThresholdGroup" 
+                                                     Margin="0,0,15,0" VerticalAlignment="Center"/>
+                                        <RadioButton Content="Convert to:" Grid.Column="2"
+                                                     IsChecked="{Binding Path=StereoAdvancedSettings.SubThresholdAction, 
+                                                                 Converter={StaticResource RadioButtonToStringConverter}, 
+                                                                 ConverterParameter=ConvertTo, Mode=TwoWay}"
+                                                     GroupName="StereoAdvancedSubThresholdGroup" 
+                                                     Margin="0,0,5,0" VerticalAlignment="Center"/>
+                                        <ComboBox Text="{Binding StereoAdvancedSettings.CustomTargetBitrate, Mode=TwoWay}"
+                                                  IsEnabled="{Binding Path=StereoAdvancedSettings.SubThresholdAction, 
+                                                              Converter={StaticResource RadioButtonToStringConverter}, 
+                                                              ConverterParameter=ConvertTo}"
+                                                  Grid.Column="3" MinWidth="80" Height="28"
+                                                  VerticalAlignment="Center" Margin="2,-1,0,0"
                                                   IsEditable="True"
-                                                  Style="{StaticResource SettingsComboBoxStyle}"
-                                                  IsEnabled="{Binding IsChecked, ElementName=StereoAdvancedConvertRadio}">
+                                                  Style="{StaticResource SettingsComboBoxStyle}">
                                             <ComboBoxItem Content="48k"/>
                                             <ComboBoxItem Content="64k"/>
                                             <ComboBoxItem Content="96k"/>
@@ -283,7 +384,7 @@
                                 </StackPanel>
                             </WrapPanel>
                         </StackPanel>
-                        <!-- Contextual Panels End -->
+                        <!-- File Types -->
                         <TextBlock Text="File Types:" FontWeight="SemiBold" Margin="0,10,0,5"/>
                         <WrapPanel>
                             <CheckBox Content=".m4b" Margin="3" IsChecked="True"/>
@@ -299,8 +400,8 @@
                         </WrapPanel>
                         <TextBlock Text="Output Folder Defaults:" FontWeight="SemiBold" Margin="0,10,0,5"/>
                         <StackPanel Orientation="Horizontal">
-                            <Button x:Name="MakeDefaultButton" Content="Set" Margin="3"/>
-                            <Button x:Name="RestoreDefaultButton" Content="Restore" Margin="3"/>
+                            <Button Command="{Binding SaveDefaultCommand}" Content="Set" Margin="3"/>
+                            <Button Command="{Binding RestoreDefaultCommand}" Content="Restore" Margin="3"/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -308,14 +409,26 @@
 
             <Expander x:Name="LogExpander" Grid.Row="2" Margin="0,5,0,5" IsExpanded="False">
                 <Expander.Header>
-                    <TextBlock x:Name="MessageBarText" Text="Ready to start." Foreground="{StaticResource SubtleTextColor}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding StatusText}" 
+                               Foreground="{StaticResource SubtleTextColor}" 
+                               TextTrimming="CharacterEllipsis"/>
                 </Expander.Header>
-                <TextBox x:Name="LogTextBox" MinHeight="100" MaxHeight="400" Margin="0,5,0,0" IsReadOnly="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" FontFamily="Consolas"/>
+                <TextBox Text="{Binding LogContent, Mode=OneWay}"
+                         MinHeight="100" MaxHeight="400" Margin="0,5,0,0" 
+                         IsReadOnly="True" VerticalScrollBarVisibility="Auto" 
+                         HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" 
+                         FontFamily="Consolas"/>
             </Expander>
 
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-                <Button x:Name="StartButton" Content="Start" Style="{StaticResource ActionButtonStyle}" />
-                <Button x:Name="CancelButton" Content="Cancel" Style="{StaticResource ActionButtonStyle}" IsEnabled="False"/>
+                <Button Command="{Binding StartProcessingCommand}" 
+                        IsEnabled="{Binding CanStartProcessing}"
+                        Content="Start" 
+                        Style="{StaticResource ActionButtonStyle}" />
+                <Button Command="{Binding CancelProcessingCommand}" 
+                        IsEnabled="{Binding CanCancelProcessing}"
+                        Content="Cancel" 
+                        Style="{StaticResource ActionButtonStyle}"/>
             </StackPanel>
 
             <StatusBar Grid.Row="4" Margin="0,10,0,0" Height="22">
@@ -334,24 +447,22 @@
                           Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=StatusBarItem}}"
                           Margin="0">
                         <!-- Progress fill background -->
-                        <Rectangle x:Name="StatusProgressFill"
-                                  Fill="#FFB0B0B0"
+                        <Rectangle Fill="#FFB0B0B0"
                                   HorizontalAlignment="Left"
                                   VerticalAlignment="Stretch"
                                   RadiusX="0" RadiusY="0"
                                   IsHitTestVisible="False"
                                   Margin="0"
-                                  Visibility="{Binding IsProgressVisible, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                  Visibility="{Binding IsProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                             <Rectangle.Width>
                                 <MultiBinding Converter="{StaticResource ProgressWidthConverter}">
                                     <Binding ElementName="StatusBarGrid" Path="ActualWidth"/>
-                                    <Binding Path="StatusProgress" RelativeSource="{RelativeSource AncestorType=Window}"/>
+                                    <Binding Path="StatusProgress"/>
                                 </MultiBinding>
                             </Rectangle.Width>
                         </Rectangle>
                         <!-- Status text -->
-                        <TextBlock x:Name="StatusTextBlock"
-                                  Text="{Binding StatusText, RelativeSource={RelativeSource AncestorType=Window}}"
+                        <TextBlock Text="{Binding StatusText}"
                                   VerticalAlignment="Center"
                                   HorizontalAlignment="Left"
                                   Margin="5,0,0,0"/>

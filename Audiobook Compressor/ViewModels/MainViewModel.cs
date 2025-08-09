@@ -1,13 +1,14 @@
 /*
     Filename: MainViewModel.cs
-    Last Updated: 2025-08-09 10:05 CEST
-    Version: 1.2.F
+    Last Updated: 2025-08-09 13:55 CEST
+    Version: 1.2.H
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
     Main ViewModel implementing MVVM pattern for MainWindow, centralizing UI logic and state management per Focus 13.1.0 Phase 1.
-    This class replaces the monolithic MainWindow.xaml.cs code-behind with a testable, service-oriented architecture.
+    Enhanced with comprehensive data binding properties per Focus 14.1.0 Phase 1 implementation.
+    Added OnApplicationExit() method for graceful shutdown and settings persistence per Focus 15.4.0 implementation.
 */
 
 using System;
@@ -46,6 +47,7 @@ namespace Audiobook_Compressor.ViewModels
         private bool _isProgressVisible;
         private string _statusText = "Ready";
         private bool _isProcessing;
+        private string _logContent = string.Empty;
 
         #endregion
 
@@ -75,7 +77,7 @@ namespace Audiobook_Compressor.ViewModels
 
         #endregion
 
-        #region Public Properties
+        #region Core UI Properties
 
         /// <summary>
         /// Application settings
@@ -148,6 +150,19 @@ namespace Audiobook_Compressor.ViewModels
         }
 
         /// <summary>
+        /// Log content for display in log expander
+        /// </summary>
+        public string LogContent
+        {
+            get => _logContent;
+            set
+            {
+                _logContent = value;
+                OnPropertyChanged();
+            }
+        }
+
+        /// <summary>
         /// Whether the Start command can be executed
         /// </summary>
         public bool CanStartProcessing =>
@@ -159,28 +174,6 @@ namespace Audiobook_Compressor.ViewModels
         /// Whether the Cancel command can be executed
         /// </summary>
         public bool CanCancelProcessing => IsProcessing;
-
-        /// <summary>
-        /// Whether Mono mode panel should be visible
-        /// </summary>
-        public bool IsMonoModeVisible => Settings.CurrentMode == "Mono";
-
-        /// <summary>
-        /// Whether Stereo mode panel should be visible
-        /// </summary>
-        public bool IsStereoModeVisible => Settings.CurrentMode == "Stereo";
-
-        /// <summary>
-        /// Whether Advanced panel should be visible for current mode
-        /// </summary>
-        public bool IsAdvancedPanelVisible
-        {
-            get
-            {
-                var currentModeSettings = Settings.CurrentMode == "Mono" ? Settings.MonoMode : Settings.StereoMode;
-                return currentModeSettings.SelectedAction == "Advanced";
-            }
-        }
 
         /// <summary>
         /// Settings summary text for display
@@ -201,6 +194,48 @@ namespace Audiobook_Compressor.ViewModels
             }
         }
 
+        #endregion
+
+        #region Panel Visibility Properties
+
+        /// <summary>
+        /// Whether Mono mode panel should be visible
+        /// </summary>
+        public bool IsMonoModeVisible => Settings.CurrentMode == "Mono";
+
+        /// <summary>
+        /// Whether Stereo mode panel should be visible
+        /// /// </summary>
+        public bool IsStereoModeVisible => Settings.CurrentMode == "Stereo";
+
+        /// <summary>
+        /// Whether Advanced panel should be visible for current mode
+        /// </summary>
+        public bool IsAdvancedPanelVisible
+        {
+            get
+            {
+                var currentModeSettings = Settings.CurrentMode == "Mono" ? Settings.MonoMode : Settings.StereoMode;
+                return currentModeSettings.SelectedAction == "Advanced";
+            }
+        }
+
+        /// <summary>
+        /// Whether Mono Advanced panel should be visible
+        /// </summary>
+        public bool IsMonoAdvancedPanelVisible =>
+            Settings.CurrentMode == "Mono" && Settings.MonoMode.SelectedAction == "Advanced";
+
+        /// <summary>
+        /// Whether Stereo Advanced panel should be visible
+        /// </summary>
+        public bool IsStereoAdvancedPanelVisible =>
+            Settings.CurrentMode == "Stereo" && Settings.StereoMode.SelectedAction == "Advanced";
+
+        #endregion
+
+        #region ComboBox Options
+
         /// <summary>
         /// Available channel options
         /// </summary>
@@ -215,6 +250,295 @@ namespace Audiobook_Compressor.ViewModels
         /// Available sample rate options
         /// </summary>
         public ReadOnlyCollection<string> SampleRateOptions => Models.Settings.SampleRateOptions;
+
+        /// <summary>
+        /// Available encoding type options
+        /// </summary>
+        public ReadOnlyCollection<string> EncodingTypeOptions { get; } = 
+            new ReadOnlyCollection<string>(new[] { "ABR", "CBR" });
+
+        /// <summary>
+        /// Available pass mode options
+        /// </summary>
+        public ReadOnlyCollection<string> PassModeOptions { get; } =
+            new ReadOnlyCollection<string>(new[] { "1-Pass", "2-Pass" });
+
+        /// <summary>
+        /// Available sub-threshold action options
+        /// </summary>
+        public ReadOnlyCollection<string> SubThresholdOptions { get; } =
+            new ReadOnlyCollection<string>(new[] { "Copy", "Defer to Rockit", "Convert to:" });
+
+        #endregion
+
+        #region Channel Mode Binding
+
+        /// <summary>
+        /// Selected channel mode for binding
+        /// </summary>
+        public string SelectedChannel
+        {
+            get => Settings.CurrentMode;
+            set
+            {
+                if (Settings.CurrentMode != value)
+                {
+                    Settings.CurrentMode = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SettingsSummary));
+                    UpdateModeVisibility();
+                    RebindMainSettings();
+                }
+            }
+        }
+
+        #endregion
+
+        #region Main Settings Binding
+
+        /// <summary>
+        /// Selected bitrate with validation for binding
+        /// </summary>
+        public string SelectedBitrate
+        {
+            get => GetCurrentBitrate();
+            set
+            {
+                if (ValidateAndSetBitrate(value))
+                {
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selected sample rate for binding
+        /// </summary>
+        public string SelectedSampleRate
+        {
+            get => GetCurrentSampleRate();
+            set
+            {
+                if (ValidateAndSetSampleRate(value))
+                {
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selected conversion threshold with validation for binding
+        /// </summary>
+        public string SelectedThreshold
+        {
+            get => GetCurrentThreshold();
+            set
+            {
+                if (ValidateAndSetThreshold(value))
+                {
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selected encoding type for binding
+        /// </summary>
+        public string SelectedEncodingType
+        {
+            get => GetCurrentEncodingType();
+            set
+            {
+                if (GetCurrentEncodingType() != value)
+                {
+                    SetCurrentEncodingType(value);
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SettingsSummary));
+                    OnPropertyChanged(nameof(IsPassModeEnabled));
+                    
+                    // Handle CBR/ABR logic
+                    if (value == "CBR")
+                    {
+                        SelectedPassMode = "1-Pass";
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selected pass mode for binding
+        /// </summary>
+        public string SelectedPassMode
+        {
+            get => GetCurrentPassMode();
+            set
+            {
+                if (GetCurrentPassMode() != value)
+                {
+                    SetCurrentPassMode(value);
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether pass mode ComboBox should be enabled
+        /// </summary>
+        public bool IsPassModeEnabled => GetCurrentEncodingType() != "CBR";
+
+        #endregion
+
+        #region Radio Button State Properties
+
+        /// <summary>
+        /// Whether Mono Copy radio button is selected
+        /// </summary>
+        public bool IsMonoCopySelected
+        {
+            get => Settings.MonoMode.SelectedAction == "Copy";
+            set
+            {
+                if (value && Settings.MonoMode.SelectedAction != "Copy")
+                {
+                    Settings.MonoMode.SelectedAction = "Copy";
+                    Settings.IsAdvancedMode = false;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsMonoConvertSelected));
+                    OnPropertyChanged(nameof(IsMonoAdvancedSelected));
+                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether Mono Convert radio button is selected
+        /// </summary>
+        public bool IsMonoConvertSelected
+        {
+            get => Settings.MonoMode.SelectedAction == "Convert";
+            set
+            {
+                if (value && Settings.MonoMode.SelectedAction != "Convert")
+                {
+                    Settings.MonoMode.SelectedAction = "Convert";
+                    Settings.IsAdvancedMode = false;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsMonoCopySelected));
+                    OnPropertyChanged(nameof(IsMonoAdvancedSelected));
+                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether Mono Advanced radio button is selected
+        /// </summary>
+        public bool IsMonoAdvancedSelected
+        {
+            get => Settings.MonoMode.SelectedAction == "Advanced";
+            set
+            {
+                if (value && Settings.MonoMode.SelectedAction != "Advanced")
+                {
+                    Settings.MonoMode.SelectedAction = "Advanced";
+                    Settings.IsAdvancedMode = true;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsMonoCopySelected));
+                    OnPropertyChanged(nameof(IsMonoConvertSelected));
+                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether Stereo Copy radio button is selected
+        /// /// </summary>
+        public bool IsStereoCopySelected
+        {
+            get => Settings.StereoMode.SelectedAction == "Copy";
+            set
+            {
+                if (value && Settings.StereoMode.SelectedAction != "Copy")
+                {
+                    Settings.StereoMode.SelectedAction = "Copy";
+                    Settings.IsAdvancedMode = false;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsStereoConvertSelected));
+                    OnPropertyChanged(nameof(IsStereoAdvancedSelected));
+                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether Stereo Convert radio button is selected
+        /// /// </summary>
+        public bool IsStereoConvertSelected
+        {
+            get => Settings.StereoMode.SelectedAction == "Convert";
+            set
+            {
+                if (value && Settings.StereoMode.SelectedAction != "Convert")
+                {
+                    Settings.StereoMode.SelectedAction = "Convert";
+                    Settings.IsAdvancedMode = false;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsStereoCopySelected));
+                    OnPropertyChanged(nameof(IsStereoAdvancedSelected));
+                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether Stereo Advanced radio button is selected
+        /// /// </summary>
+        public bool IsStereoAdvancedSelected
+        {
+            get => Settings.StereoMode.SelectedAction == "Advanced";
+            set
+            {
+                if (value && Settings.StereoMode.SelectedAction != "Advanced")
+                {
+                    Settings.StereoMode.SelectedAction = "Advanced";
+                    Settings.IsAdvancedMode = true;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsStereoCopySelected));
+                    OnPropertyChanged(nameof(IsStereoConvertSelected));
+                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
+                    OnPropertyChanged(nameof(SettingsSummary));
+                }
+            }
+        }
+
+        #endregion
+
+        #region Advanced Settings Binding
+
+        /// <summary>
+        /// Mono Advanced settings wrapper for binding
+        /// </summary>
+        public CompressionSettings MonoAdvancedSettings => Settings.MonoMode.AdvancedOverride;
+
+        /// <summary>
+        /// Stereo Advanced settings wrapper for binding
+        /// </summary>
+        public CompressionSettings StereoAdvancedSettings => Settings.StereoMode.AdvancedOverride;
 
         #endregion
 
@@ -389,6 +713,32 @@ namespace Audiobook_Compressor.ViewModels
             _settingsService.SaveSettings(Settings);
         }
 
+        /// <summary>
+        /// Called when application is exiting to perform cleanup and save settings
+        /// </summary>
+        public void OnApplicationExit()
+        {
+            try
+            {
+                // Save current settings state
+                _settingsService.SaveSettings(Settings);
+                
+                // Cancel any ongoing operations
+                if (IsProcessing)
+                {
+                    _cancellationTokenSource?.Cancel();
+                }
+                
+                // Cleanup resources
+                Dispose();
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't prevent application exit
+                System.Diagnostics.Debug.WriteLine($"Error during application exit: {ex.Message}");
+            }
+        }
+
         #endregion
 
         #region Event Handlers
@@ -406,8 +756,12 @@ namespace Audiobook_Compressor.ViewModels
             var fileName = System.IO.Path.GetFileName(e.File.SourcePath);
             var bitrateInfo = e.File.Bitrate.HasValue ? $" ({Models.Settings.FormatBitrate(e.File.Bitrate.Value)})" : "";
 
-            // Note: In full implementation, this would be logged to a proper log display
-            System.Diagnostics.Debug.WriteLine($"Processed {fileName}: {status}{bitrateInfo}");
+            var logMessage = $"Processed {fileName}: {status}{bitrateInfo}";
+            
+            // Update log content
+            LogContent += logMessage + Environment.NewLine;
+            
+            System.Diagnostics.Debug.WriteLine(logMessage);
         }
 
         #endregion
@@ -453,7 +807,167 @@ namespace Audiobook_Compressor.ViewModels
             OnPropertyChanged(nameof(IsMonoModeVisible));
             OnPropertyChanged(nameof(IsStereoModeVisible));
             OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+            OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
+            OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
         }
+
+        #region Settings Helper Methods
+
+        private string GetCurrentBitrate()
+        {
+            var mainSettings = Settings.CurrentMode == "Mono" ?
+                Settings.MonoMode.Main : Settings.StereoMode.Main;
+            return mainSettings.TargetBitrate;
+        }
+
+        private string GetCurrentSampleRate()
+        {
+            var mainSettings = Settings.CurrentMode == "Mono" ?
+                Settings.MonoMode.Main : Settings.StereoMode.Main;
+            return mainSettings.SampleRate;
+        }
+
+        private string GetCurrentThreshold()
+        {
+            var mainSettings = Settings.CurrentMode == "Mono" ?
+                Settings.MonoMode.Main : Settings.StereoMode.Main;
+            return mainSettings.ConversionThreshold;
+        }
+
+        private string GetCurrentEncodingType()
+        {
+            var mainSettings = Settings.CurrentMode == "Mono" ?
+                Settings.MonoMode.Main : Settings.StereoMode.Main;
+            return mainSettings.EncodingType;
+        }
+
+        private string GetCurrentPassMode()
+        {
+            var mainSettings = Settings.CurrentMode == "Mono" ?
+                Settings.MonoMode.Main : Settings.StereoMode.Main;
+            return mainSettings.PassMode;
+        }
+
+        private void SetCurrentEncodingType(string value)
+        {
+            var mainSettings = Settings.CurrentMode == "Mono" ?
+                Settings.MonoMode.Main : Settings.StereoMode.Main;
+            mainSettings.EncodingType = value;
+        }
+
+        private void SetCurrentPassMode(string value)
+        {
+            var mainSettings = Settings.CurrentMode == "Mono" ?
+                Settings.MonoMode.Main : Settings.StereoMode.Main;
+            mainSettings.PassMode = value;
+        }
+
+        private bool ValidateAndSetBitrate(string bitrateString)
+        {
+            var validation = _validationService.ValidateBitrate(bitrateString, out string normalized);
+            if (validation.IsValid)
+            {
+                var mainSettings = Settings.CurrentMode == "Mono" ?
+                    Settings.MonoMode.Main : Settings.StereoMode.Main;
+                mainSettings.TargetBitrate = normalized;
+
+                // Show warnings if any
+                if (validation.HasWarnings)
+                {
+                    _dialogService.ShowWarningDialog(
+                        string.Join("\n", validation.Warnings),
+                        "Bitrate Warning");
+                }
+
+                // Check threshold logic
+                CheckBitrateThresholdLogic(mainSettings);
+                return true;
+            }
+            else
+            {
+                _dialogService.ShowWarningDialog(
+                    string.Join("\n", validation.Errors),
+                    "Invalid Bitrate");
+                return false;
+            }
+        }
+
+        private bool ValidateAndSetSampleRate(string sampleRateString)
+        {
+            var validation = _validationService.ValidateSampleRate(sampleRateString);
+            if (validation.IsValid)
+            {
+                var mainSettings = Settings.CurrentMode == "Mono" ?
+                    Settings.MonoMode.Main : Settings.StereoMode.Main;
+                mainSettings.SampleRate = sampleRateString;
+                return true;
+            }
+            else
+            {
+                _dialogService.ShowWarningDialog(
+                    string.Join("\n", validation.Errors),
+                    "Invalid Sample Rate");
+                return false;
+            }
+        }
+
+        private bool ValidateAndSetThreshold(string thresholdString)
+        {
+            var validation = _validationService.ValidateBitrate(thresholdString, out string normalized);
+            if (validation.IsValid)
+            {
+                var mainSettings = Settings.CurrentMode == "Mono" ?
+                    Settings.MonoMode.Main : Settings.StereoMode.Main;
+                mainSettings.ConversionThreshold = normalized;
+
+                // Check threshold logic
+                CheckBitrateThresholdLogic(mainSettings);
+                return true;
+            }
+            else
+            {
+                _dialogService.ShowWarningDialog(
+                    string.Join("\n", validation.Errors),
+                    "Invalid Threshold");
+                return false;
+            }
+        }
+
+        private void CheckBitrateThresholdLogic(CompressionSettings settings)
+        {
+            if (Models.Settings.TryParseBitrate(settings.TargetBitrate, out int targetBps) &&
+                Models.Settings.TryParseBitrate(settings.ConversionThreshold, out int thresholdBps))
+            {
+                if (targetBps > thresholdBps)
+                {
+                    _dialogService.ShowWarningDialog(
+                        "Warning: Target bitrate is higher than conversion threshold. " +
+                        "Files below the threshold will be copied instead of re-encoded.",
+                        "Bitrate/Threshold Warning");
+                }
+            }
+        }
+
+        private void RebindMainSettings()
+        {
+            // Notify all main setting properties to refresh their values
+            OnPropertyChanged(nameof(SelectedBitrate));
+            OnPropertyChanged(nameof(SelectedSampleRate));
+            OnPropertyChanged(nameof(SelectedThreshold));
+            OnPropertyChanged(nameof(SelectedEncodingType));
+            OnPropertyChanged(nameof(SelectedPassMode));
+            OnPropertyChanged(nameof(IsPassModeEnabled));
+
+            // Update radio button states for new mode
+            OnPropertyChanged(nameof(IsMonoCopySelected));
+            OnPropertyChanged(nameof(IsMonoConvertSelected));
+            OnPropertyChanged(nameof(IsMonoAdvancedSelected));
+            OnPropertyChanged(nameof(IsStereoCopySelected));
+            OnPropertyChanged(nameof(IsStereoConvertSelected));
+            OnPropertyChanged(nameof(IsStereoAdvancedSelected));
+        }
+
+        #endregion
 
         #endregion
 

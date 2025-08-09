@@ -1,12 +1,13 @@
 ﻿/*
     Filename: App.xaml.cs
-    Last Updated: 2025-08-09 10:30 CEST
-    Version: 1.2.F
+    Last Updated: 2025-08-09 13:55 CEST
+    Version: 1.2.H
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
-    Configured dependency injection container for MVVM architecture per Focus 13.1.0 Phase 3, integrating service-oriented design with MainViewModel.
+    Enhanced dependency injection container with settings persistence on application exit per Focus 15.4.0 implementation.
+    MainViewModel is now Singleton for graceful shutdown access, with OnExit calling settings persistence.
 */
 
 using System;
@@ -68,16 +69,31 @@ namespace Audiobook_Compressor
             services.AddSingleton<IDialogService, DialogService>();
             services.AddSingleton<IValidationService, ValidationService>();
 
-            // Register ViewModels
-            services.AddTransient<MainViewModel>();
+            // Register ViewModels - Singleton for application exit access
+            services.AddSingleton<MainViewModel>();
 
             _serviceProvider = services.BuildServiceProvider();
         }
 
         protected override void OnExit(ExitEventArgs e)
         {
-            _serviceProvider?.Dispose();
-            base.OnExit(e);
+            try
+            {
+                // Get MainViewModel from DI container and call graceful shutdown
+                var mainViewModel = _serviceProvider?.GetService<MainViewModel>();
+                mainViewModel?.OnApplicationExit();
+            }
+            catch (Exception ex)
+            {
+                // Log error but allow application to exit
+                System.Diagnostics.Debug.WriteLine($"Error during application shutdown: {ex.Message}");
+            }
+            finally
+            {
+                // Always cleanup DI container
+                _serviceProvider?.Dispose();
+                base.OnExit(e);
+            }
         }
     }
 }

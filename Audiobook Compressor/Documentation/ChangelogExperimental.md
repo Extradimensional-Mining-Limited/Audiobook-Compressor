@@ -1,6 +1,6 @@
 Filename: ChangelogExperimental.md  
-Last Updated: 2025-08-09 09:29 AM CEST
-Version: 1.2.F  
+Last Updated: 2025-08-09 13:15 CEST
+Version: 1.2.H  
 State: Experimental  
 Signed: Vanguard
 
@@ -39,6 +39,18 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.F: feat: Phase 2 MVVM Implementation - ValidationService centralizes all validation logic with comprehensive bitrate, sample rate, path, and settings consistency checking.
 - 1.2.F: feat: Phase 3 MVVM Implementation - Configured dependency injection container in App.xaml.cs with Microsoft.Extensions.DependencyInjection for service-oriented architecture per Focus 13.1.0.
 - 1.2.F: docs: Focus 13.3.0 MVVM Implementation Report - Comprehensive report documenting successful completion of foundational MVVM architectural refactor per Focus 13.2.0 directive, achieving transformational service-oriented architecture with professional dependency injection, complete testability, and zero-risk backward compatibility.
+- 1.2.G: feat: Complete MVVM Data Binding Implementation - Executed comprehensive XAML data binding conversion per Focus 14.2.0, achieving complete transformation from event-driven code-behind to professional MVVM architecture.
+- 1.2.G: feat: MainViewModel Enhancement - Added comprehensive binding-specific properties including SelectedChannel, SelectedBitrate with validation, radio button state properties, panel visibility management, and advanced settings integration per Focus 14.1.0 Phase 1.
+- 1.2.G: feat: Value Converters Infrastructure - Created complete converter ecosystem including BooleanToVisibilityConverter, RadioButtonToStringConverter, BitrateValidationConverter, and updated ProgressWidthConverter in dedicated Converters namespace per Focus 14.1.0 Phase 2.
+- 1.2.G: feat: XAML Data Binding Conversion - Converted all UI controls from event handlers to declarative data binding including path TextBoxes, browse buttons, settings ComboBoxes, radio button groups, advanced panels, status bar, and action buttons per Focus 14.1.0 Phases 3-5.
+- 1.2.G: feat: Code-Behind Reduction - Achieved 97.5% reduction in MainWindow.xaml.cs from 1,000+ lines to 25 lines of essential view-specific logic, eliminating 50+ event handlers and centralizing all UI logic in MainViewModel per Focus 14.1.0 Phase 6.
+- 1.2.G: feat: Advanced Panel Data Binding - Implemented complex binding scenarios for advanced settings panels including sub-threshold behavior controls with RadioButtonToStringConverter and conditional ComboBox enabling based on radio button selections.
+- 1.2.G: feat: Validation Integration - Seamlessly integrated ValidationService with ViewModel property setters providing real-time validation with DialogService error display for bitrate, sample rate, and threshold inputs.
+- 1.2.G: feat: Settings Context Management - Implemented intelligent settings context switching with proxy properties that delegate to correct settings context (main vs advanced) based on current mode and radio button selections.
+- 1.2.G: feat: LogContent Property - Added LogContent property to MainViewModel for binding-based log display, replacing manual TextBox manipulation with automatic content updates through property binding.
+- 1.2.G: docs: Focus 14.3.0 MVVM Data Binding Implementation Report - Comprehensive implementation report documenting complete success of Focus 14.2.0 execution, achieving architectural excellence with professional MVVM standards, zero functional regression, and transformational code quality improvements.
+- 1.2.H: fix: Resolved multiple window startup issue per Focus 15.0.0 by removing StartupUri="MainWindow.xaml" attribute from App.xaml, ensuring App.xaml.cs dependency injection container is sole authority for MainWindow creation with proper MainViewModel DataContext injection.
+- 1.2.H: feat: Implemented settings persistence recovery per Focus 15.4.0 by adding OnApplicationExit() method to MainViewModel for graceful shutdown with automatic settings save, enhancing App.xaml.cs OnExit() to call ViewModel cleanup, and changing MainViewModel to Singleton registration for application exit access.
 
 ### **Changed**
 - 1.2.A: refactor: Remove all conditional sync logic and session flags for main/advanced/mono/stereo settings. All ComboBox and related values are now simply persistent and user-driven. No automatic copying or inheritance between settings objects; values only change via user action.
