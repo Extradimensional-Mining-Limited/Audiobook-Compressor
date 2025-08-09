@@ -1,6 +1,6 @@
 Filename: ChangelogExperimental.md  
-Last Updated: 2025-08-07 12:43 CEST
-Version: 1.2.E  
+Last Updated: 2025-08-09 09:29 AM CEST
+Version: 1.2.F  
 State: Experimental  
 Signed: Vanguard
 
@@ -21,13 +21,24 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.D: feat: Custom Bitrate Conversion - Added support for "Convert to:" option with user-specified target bitrate for sub-threshold files.
 - 1.2.D: feat: ProcessWithAdvancedLogic method in AudioProcessor for complete advanced panel decision tree including sub-threshold behavior routing.
 - 1.2.D: feat: VBR Command Generation - Added BuildFFmpegVBRCommand method with sophisticated maxrate and buffer size calculation for quality preservation.
-- 1.2.F: test: Created AudiobookCompressor.Tests project with xUnit and Moq targeting .NET 8.0-windows per Focus 11.1.0/11.2.0.
-- 1.2.F: test: Introduced IProcessRunner and IFileSystem abstraction interfaces enabling dependency injection and comprehensive mocking for AudioProcessor testing.
-- 1.2.F: test: Implemented AudioProcessingDecider static class for pure logic testing of all processing decision paths (copy/convert/advanced/sub-threshold/Defer to Rockit) without file/process side effects.
-- 1.2.F: test: Created comprehensive xUnit test suite with AudioProcessingDeciderTests covering all Focus 11.1.0 scenarios, including Defer to Rockit, dynamic maxrate, and advanced panel logic.
-- 1.2.F: feat: Refactored AudioProcessor constructor to support dependency injection of IProcessRunner and IFileSystem with fallback to default implementations for backward compatibility.
-- 1.2.F: feat: Exposed DetailedFileInfo class as public to enable unit testing accessibility while maintaining internal logic separation.
-- 1.2.F: docs: Created comprehensive Testing-Architecture.md documentation per Focus 11.4.0, providing architectural guide, usage instructions, and maintenance procedures for the automated test suite.
+- 1.2.E: test: Created AudiobookCompressor.Tests project with xUnit and Moq targeting .NET 8.0-windows per Focus 11.1.0/11.2.0.
+- 1.2.E: test: Introduced IProcessRunner and IFileSystem abstraction interfaces enabling dependency injection and comprehensive mocking for AudioProcessor testing.
+- 1.2.E: test: Implemented AudioProcessingDecider static class for pure logic testing of all processing decision paths (copy/convert/advanced/sub-threshold/Defer to Rockit) without file/process side effects.
+- 1.2.E: test: Created comprehensive xUnit test suite with AudioProcessingDeciderTests covering all Focus 11.1.0 scenarios, including Defer to Rockit, dynamic maxrate, and advanced panel logic.
+- 1.2.E: feat: Refactored AudioProcessor constructor to support dependency injection of IProcessRunner and IFileSystem with fallback to default implementations for backward compatibility.
+- 1.2.E: feat: Exposed DetailedFileInfo class as public to enable unit testing accessibility while maintaining internal logic separation.
+- 1.2.E: docs: Created comprehensive Testing-Architecture.md documentation per Focus 11.4.0, providing architectural guide, usage instructions, and maintenance procedures for the automated test suite.
+- 1.2.F: docs: Created Focus 13.1.0 MVVM Refactoring Proposal in response to Focus 13.0.0 directive, providing comprehensive analysis of current monolithic MainWindow architecture and detailed phased plan for implementing professional MVVM pattern with dependency injection, service-oriented architecture, and comprehensive unit testing capabilities.
+- 1.2.F: feat: Phase 1 MVVM Implementation - Created service interfaces (ISettingsService, IAudioService, IDialogService, IValidationService) abstracting MainWindow dependencies for dependency injection per Focus 13.1.0.
+- 1.2.F: feat: Phase 1 MVVM Implementation - Created MainViewModel class as core of MVVM architecture, centralizing all UI logic, state management, and commands from MainWindow.xaml.cs with complete service-oriented design.
+- 1.2.F: feat: Phase 1 MVVM Implementation - Created RelayCommand implementation enabling replacement of event handlers with testable commands in ViewModels per MVVM pattern.
+- 1.2.F: feat: Phase 2 MVVM Implementation - Created concrete service implementations (SettingsService, AudioService, DialogService, ValidationService) migrating all logic from MainWindow.xaml.cs per Focus 13.1.0.
+- 1.2.F: feat: Phase 2 MVVM Implementation - SettingsService implements complete XML persistence with migration support, path management, and validation migrated from MainWindow.
+- 1.2.F: feat: Phase 2 MVVM Implementation - AudioService wraps AudioProcessor with proper event forwarding and cancellation management for MVVM architecture.
+- 1.2.F: feat: Phase 2 MVVM Implementation - DialogService abstracts all dialog operations (MessageBox, folder browser) enabling testable UI interactions.
+- 1.2.F: feat: Phase 2 MVVM Implementation - ValidationService centralizes all validation logic with comprehensive bitrate, sample rate, path, and settings consistency checking.
+- 1.2.F: feat: Phase 3 MVVM Implementation - Configured dependency injection container in App.xaml.cs with Microsoft.Extensions.DependencyInjection for service-oriented architecture per Focus 13.1.0.
+- 1.2.F: docs: Focus 13.3.0 MVVM Implementation Report - Comprehensive report documenting successful completion of foundational MVVM architectural refactor per Focus 13.2.0 directive, achieving transformational service-oriented architecture with professional dependency injection, complete testability, and zero-risk backward compatibility.
 
 ### **Changed**
 - 1.2.A: refactor: Remove all conditional sync logic and session flags for main/advanced/mono/stereo settings. All ComboBox and related values are now simply persistent and user-driven. No automatic copying or inheritance between settings objects; values only change via user action.
@@ -61,5 +72,6 @@ This file contains a detailed, granular log of all changes made on the experimen
 - 1.2.E: fix: Resolved test project compatibility issues by targeting net8.0-windows to match main project framework requirements.
 - 1.2.E: fix: Fixed CS0051 accessibility error by changing DetailedFileInfo from internal to public for test accessibility.
 - 1.2.E: fix: Corrected AudioProcessingDecider logic to properly handle Advanced/DeferToRockit scenarios, ensuring channel comparison always determines the correct action type for sub-threshold behaviors.
+- 1.2.F: docs: Corrected version inconsistencies throughout codebase to align with current cycle 1.2.F per directive regarding version drift resolution.
 
 **Note**: GetTime.exe failure reported - timestamp shows as TIMESTAMP_ERROR for version 1.2.B changes.

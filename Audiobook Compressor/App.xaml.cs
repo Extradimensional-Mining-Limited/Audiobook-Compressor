@@ -1,20 +1,20 @@
 ﻿/*
     Filename: App.xaml.cs
-    Last Updated: 2025-07-25 03:32
-    Version: 1.2.0
-    State: Stable
-    Signed: User
+    Last Updated: 2025-08-09 10:30 CEST
+    Version: 1.2.F
+    State: Experimental
+    Signed: Vanguard
 
     Synopsis:
-    - All file headers updated to v1.2.0, state Stable, signed User, with unified timestamp.
-    - Documentation and changelog discipline enforced for release.
-    - No code changes since last version except header and documentation updates.
+    Configured dependency injection container for MVVM architecture per Focus 13.1.0 Phase 3, integrating service-oriented design with MainViewModel.
 */
 
-using System.Configuration;
-using System.Data;
-using System.Windows;
+using System;
 using System.Linq;
+using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
+using Audiobook_Compressor.Services;
+using Audiobook_Compressor.ViewModels;
 
 namespace Audiobook_Compressor
 {
@@ -23,6 +23,8 @@ namespace Audiobook_Compressor
     /// </summary>
     public partial class App : System.Windows.Application
     {
+        private ServiceProvider? _serviceProvider;
+
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
@@ -38,8 +40,44 @@ namespace Audiobook_Compressor
                     MessageBoxImage.Error);
                 
                 Current.Shutdown();
+                return;
             }
+
+            // Configure dependency injection
+            ConfigureServices();
+
+            // Create and show main window with proper ViewModel
+            var mainWindow = new MainWindow();
+            var mainViewModel = _serviceProvider?.GetRequiredService<MainViewModel>();
+            
+            if (mainViewModel != null)
+            {
+                mainWindow.DataContext = mainViewModel;
+            }
+            
+            mainWindow.Show();
+        }
+
+        private void ConfigureServices()
+        {
+            var services = new ServiceCollection();
+
+            // Register services
+            services.AddSingleton<ISettingsService, SettingsService>();
+            services.AddTransient<IAudioService, AudioService>();
+            services.AddSingleton<IDialogService, DialogService>();
+            services.AddSingleton<IValidationService, ValidationService>();
+
+            // Register ViewModels
+            services.AddTransient<MainViewModel>();
+
+            _serviceProvider = services.BuildServiceProvider();
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            _serviceProvider?.Dispose();
+            base.OnExit(e);
         }
     }
-
 }
