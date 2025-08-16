@@ -1,7 +1,7 @@
 /*
     Filename: MainViewModel.cs
-    Last Updated: 2025-08-09 13:55 CEST
-    Version: 1.2.H
+    Last Updated: 2025-08-09 15:05 CEST
+    Version: 1.2.I
     State: Experimental
     Signed: Vanguard
 
@@ -9,6 +9,7 @@
     Main ViewModel implementing MVVM pattern for MainWindow, centralizing UI logic and state management per Focus 13.1.0 Phase 1.
     Enhanced with comprehensive data binding properties per Focus 14.1.0 Phase 1 implementation.
     Added OnApplicationExit() method for graceful shutdown and settings persistence per Focus 15.4.0 implementation.
+    Phase 1 modularization per Focus 16.2.0: UI state and panel visibility delegated to specialized services.
 */
 
 using System;
@@ -37,6 +38,8 @@ namespace Audiobook_Compressor.ViewModels
         private readonly IAudioService _audioService;
         private readonly IDialogService _dialogService;
         private readonly IValidationService _validationService;
+        private readonly IUIStateService _uiStateService;
+        private readonly IPanelVisibilityService _panelVisibilityService;
 
         private ApplicationSettings _settings;
         private CancellationTokenSource? _cancellationTokenSource;
@@ -57,15 +60,25 @@ namespace Audiobook_Compressor.ViewModels
             ISettingsService settingsService,
             IAudioService audioService,
             IDialogService dialogService,
-            IValidationService validationService)
+            IValidationService validationService,
+            IUIStateService uiStateService,
+            IPanelVisibilityService panelVisibilityService)
         {
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _audioService = audioService ?? throw new ArgumentNullException(nameof(audioService));
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             _validationService = validationService ?? throw new ArgumentNullException(nameof(validationService));
+            _uiStateService = uiStateService ?? throw new ArgumentNullException(nameof(uiStateService));
+            _panelVisibilityService = panelVisibilityService ?? throw new ArgumentNullException(nameof(panelVisibilityService));
 
-            // Load settings
+            // Load settings first
             _settings = _settingsService.LoadSettings();
+
+            // Initialize panel visibility with loaded settings to fix advanced panel bug
+            _panelVisibilityService.Initialize(
+                Settings.CurrentMode,
+                Settings.MonoMode.SelectedAction,
+                Settings.StereoMode.SelectedAction);
 
             // Initialize commands
             InitializeCommands();
@@ -73,6 +86,12 @@ namespace Audiobook_Compressor.ViewModels
             // Subscribe to audio service events
             _audioService.ProgressChanged += OnAudioProgressChanged;
             _audioService.FileProcessed += OnAudioFileProcessed;
+
+            // Subscribe to UI state service changes for property forwarding
+            _uiStateService.PropertyChanged += OnUIStateServicePropertyChanged;
+
+            // Subscribe to panel visibility service changes for property forwarding
+            _panelVisibilityService.PropertyChanged += OnPanelVisibilityServicePropertyChanged;
         }
 
         #endregion
@@ -91,76 +110,34 @@ namespace Audiobook_Compressor.ViewModels
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartProcessing));
                 OnPropertyChanged(nameof(SettingsSummary));
-                UpdateModeVisibility();
+                UpdatePanelVisibility();
             }
         }
 
         /// <summary>
-        /// Current processing progress (0.0 to 1.0)
+        /// Current processing progress (0.0 to 1.0) - Delegated to UIStateService
         /// </summary>
-        public double StatusProgress
-        {
-            get => _statusProgress;
-            set
-            {
-                _statusProgress = value;
-                OnPropertyChanged();
-            }
-        }
+        public double StatusProgress => _uiStateService.StatusProgress;
 
         /// <summary>
-        /// Whether progress bar should be visible
+        /// Whether progress bar should be visible - Delegated to UIStateService
         /// </summary>
-        public bool IsProgressVisible
-        {
-            get => _isProgressVisible;
-            set
-            {
-                _isProgressVisible = value;
-                OnPropertyChanged();
-            }
-        }
+        public bool IsProgressVisible => _uiStateService.IsProgressVisible;
 
         /// <summary>
-        /// Current status text
+        /// Current status text - Delegated to UIStateService
         /// </summary>
-        public string StatusText
-        {
-            get => _statusText;
-            set
-            {
-                _statusText = value;
-                OnPropertyChanged();
-            }
-        }
+        public string StatusText => _uiStateService.StatusText;
 
         /// <summary>
-        /// Whether audio processing is currently running
+        /// Whether audio processing is currently running - Delegated to UIStateService
         /// </summary>
-        public bool IsProcessing
-        {
-            get => _isProcessing;
-            set
-            {
-                _isProcessing = value;
-                OnPropertyChanged();
-                OnPropertyChanged(nameof(CanStartProcessing));
-                OnPropertyChanged(nameof(CanCancelProcessing));
-            }
-        }
+        public bool IsProcessing => _uiStateService.IsProcessing;
 
         /// <summary>
-        /// Log content for display in log expander
+        /// Log content for display in log expander - Delegated to UIStateService
         /// </summary>
-        public string LogContent
-        {
-            get => _logContent;
-            set
-            {
-                _logContent = value;
-                OnPropertyChanged();
-            }
-        }
+        public string LogContent => _uiStateService.LogContent;
 
         /// <summary>
         /// Whether the Start command can be executed
@@ -199,38 +176,29 @@ namespace Audiobook_Compressor.ViewModels
         #region Panel Visibility Properties
 
         /// <summary>
-        /// Whether Mono mode panel should be visible
+        /// Whether Mono mode panel should be visible - Delegated to PanelVisibilityService
         /// </summary>
-        public bool IsMonoModeVisible => Settings.CurrentMode == "Mono";
+        public bool IsMonoModeVisible => _panelVisibilityService.IsMonoModeVisible;
 
         /// <summary>
-        /// Whether Stereo mode panel should be visible
+        /// Whether Stereo mode panel should be visible - Delegated to PanelVisibilityService
         /// /// </summary>
-        public bool IsStereoModeVisible => Settings.CurrentMode == "Stereo";
+        public bool IsStereoModeVisible => _panelVisibilityService.IsStereoModeVisible;
 
         /// <summary>
-        /// Whether Advanced panel should be visible for current mode
+        /// Whether Advanced panel should be visible for current mode - Delegated to PanelVisibilityService
         /// </summary>
-        public bool IsAdvancedPanelVisible
-        {
-            get
-            {
-                var currentModeSettings = Settings.CurrentMode == "Mono" ? Settings.MonoMode : Settings.StereoMode;
-                return currentModeSettings.SelectedAction == "Advanced";
-            }
-        }
+        public bool IsAdvancedPanelVisible => _panelVisibilityService.IsAdvancedPanelVisible;
 
         /// <summary>
-        /// Whether Mono Advanced panel should be visible
+        /// Whether Mono Advanced panel should be visible - Delegated to PanelVisibilityService
         /// </summary>
-        public bool IsMonoAdvancedPanelVisible =>
-            Settings.CurrentMode == "Mono" && Settings.MonoMode.SelectedAction == "Advanced";
+        public bool IsMonoAdvancedPanelVisible => _panelVisibilityService.IsMonoAdvancedPanelVisible;
 
         /// <summary>
-        /// Whether Stereo Advanced panel should be visible
+        /// Whether Stereo Advanced panel should be visible - Delegated to PanelVisibilityService
         /// </summary>
-        public bool IsStereoAdvancedPanelVisible =>
-            Settings.CurrentMode == "Stereo" && Settings.StereoMode.SelectedAction == "Advanced";
+        public bool IsStereoAdvancedPanelVisible => _panelVisibilityService.IsStereoAdvancedPanelVisible;
 
         #endregion
 
@@ -286,7 +254,7 @@ namespace Audiobook_Compressor.ViewModels
                     Settings.CurrentMode = value;
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(SettingsSummary));
-                    UpdateModeVisibility();
+                    UpdatePanelVisibility();
                     RebindMainSettings();
                 }
             }
@@ -406,11 +374,10 @@ namespace Audiobook_Compressor.ViewModels
                 {
                     Settings.MonoMode.SelectedAction = "Copy";
                     Settings.IsAdvancedMode = false;
+                    UpdatePanelVisibility();
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsMonoConvertSelected));
                     OnPropertyChanged(nameof(IsMonoAdvancedSelected));
-                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
-                    OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
                     OnPropertyChanged(nameof(SettingsSummary));
                 }
             }
@@ -428,11 +395,10 @@ namespace Audiobook_Compressor.ViewModels
                 {
                     Settings.MonoMode.SelectedAction = "Convert";
                     Settings.IsAdvancedMode = false;
+                    UpdatePanelVisibility();
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsMonoCopySelected));
                     OnPropertyChanged(nameof(IsMonoAdvancedSelected));
-                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
-                    OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
                     OnPropertyChanged(nameof(SettingsSummary));
                 }
             }
@@ -450,11 +416,10 @@ namespace Audiobook_Compressor.ViewModels
                 {
                     Settings.MonoMode.SelectedAction = "Advanced";
                     Settings.IsAdvancedMode = true;
+                    UpdatePanelVisibility();
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsMonoCopySelected));
                     OnPropertyChanged(nameof(IsMonoConvertSelected));
-                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
-                    OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
                     OnPropertyChanged(nameof(SettingsSummary));
                 }
             }
@@ -472,11 +437,10 @@ namespace Audiobook_Compressor.ViewModels
                 {
                     Settings.StereoMode.SelectedAction = "Copy";
                     Settings.IsAdvancedMode = false;
+                    UpdatePanelVisibility();
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsStereoConvertSelected));
                     OnPropertyChanged(nameof(IsStereoAdvancedSelected));
-                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
-                    OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
                     OnPropertyChanged(nameof(SettingsSummary));
                 }
             }
@@ -494,11 +458,10 @@ namespace Audiobook_Compressor.ViewModels
                 {
                     Settings.StereoMode.SelectedAction = "Convert";
                     Settings.IsAdvancedMode = false;
+                    UpdatePanelVisibility();
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsStereoCopySelected));
                     OnPropertyChanged(nameof(IsStereoAdvancedSelected));
-                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
-                    OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
                     OnPropertyChanged(nameof(SettingsSummary));
                 }
             }
@@ -516,11 +479,10 @@ namespace Audiobook_Compressor.ViewModels
                 {
                     Settings.StereoMode.SelectedAction = "Advanced";
                     Settings.IsAdvancedMode = true;
+                    UpdatePanelVisibility();
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(IsStereoCopySelected));
                     OnPropertyChanged(nameof(IsStereoConvertSelected));
-                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
-                    OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
                     OnPropertyChanged(nameof(SettingsSummary));
                 }
             }
@@ -608,10 +570,10 @@ namespace Audiobook_Compressor.ViewModels
                     }
                 }
 
-                // Start processing
-                IsProcessing = true;
+                // Start processing using UIStateService
+                _uiStateService.SetProcessingState(true);
                 _pendingFiles.Clear();
-                UpdateStatus("Scanning files...", 0);
+                _uiStateService.UpdateStatus("Scanning files...", 0);
 
                 _cancellationTokenSource = new CancellationTokenSource();
 
@@ -626,30 +588,30 @@ namespace Audiobook_Compressor.ViewModels
 
                 if (files.Count == 0)
                 {
-                    UpdateStatus("No supported audio files found.", null);
-                    IsProcessing = false;
+                    _uiStateService.UpdateStatus("No supported audio files found.", null);
+                    _uiStateService.SetProcessingState(false);
                     return;
                 }
 
                 _pendingFiles.AddRange(files);
-                UpdateStatus($"Found {files.Count} files to process.", null);
+                _uiStateService.UpdateStatus($"Found {files.Count} files to process.", null);
 
                 // Process files
                 await _audioService.ProcessFilesAsync(files, Settings.OutputPath, _cancellationTokenSource.Token);
 
                 if (!_cancellationTokenSource.Token.IsCancellationRequested)
                 {
-                    UpdateStatus("All files processed successfully.", 1.0);
+                    _uiStateService.UpdateStatus("All files processed successfully.", 1.0);
                 }
             }
             catch (Exception ex)
             {
                 _dialogService.ShowErrorDialog($"An error occurred: {ex.Message}", "Processing Error");
-                UpdateStatus("Error occurred", null);
+                _uiStateService.UpdateStatus("Error occurred", null);
             }
             finally
             {
-                IsProcessing = false;
+                _uiStateService.SetProcessingState(false);
                 _cancellationTokenSource?.Dispose();
                 _cancellationTokenSource = null;
             }
@@ -659,7 +621,7 @@ namespace Audiobook_Compressor.ViewModels
         {
             _cancellationTokenSource?.Cancel();
             _audioService.CancelProcessing();
-            UpdateStatus("Cancelling...", null);
+            _uiStateService.UpdateStatus("Cancelling...", null);
         }
 
         private void ExecuteBrowseSource()
@@ -747,7 +709,7 @@ namespace Audiobook_Compressor.ViewModels
         {
             var fileIndex = _pendingFiles.IndexOf(e.File);
             var overallProgress = (fileIndex + e.Progress) / _pendingFiles.Count;
-            UpdateStatus($"Processing {System.IO.Path.GetFileName(e.File.SourcePath)}...", overallProgress);
+            _uiStateService.UpdateStatus($"Processing {System.IO.Path.GetFileName(e.File.SourcePath)}...", overallProgress);
         }
 
         private void OnAudioFileProcessed(object? sender, AudioFileProcessedEventArgs e)
@@ -758,28 +720,73 @@ namespace Audiobook_Compressor.ViewModels
 
             var logMessage = $"Processed {fileName}: {status}{bitrateInfo}";
             
-            // Update log content
-            LogContent += logMessage + Environment.NewLine;
+            // Update log content using UIStateService
+            _uiStateService.AppendLog(logMessage);
             
             System.Diagnostics.Debug.WriteLine(logMessage);
+        }
+
+        private void OnUIStateServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // Forward property changes from UIStateService to MainViewModel
+            switch (e.PropertyName)
+            {
+                case nameof(IUIStateService.StatusProgress):
+                    OnPropertyChanged(nameof(StatusProgress));
+                    break;
+                case nameof(IUIStateService.IsProgressVisible):
+                    OnPropertyChanged(nameof(IsProgressVisible));
+                    break;
+                case nameof(IUIStateService.StatusText):
+                    OnPropertyChanged(nameof(StatusText));
+                    break;
+                case nameof(IUIStateService.LogContent):
+                    OnPropertyChanged(nameof(LogContent));
+                    break;
+                case nameof(IUIStateService.IsProcessing):
+                    OnPropertyChanged(nameof(IsProcessing));
+                    OnPropertyChanged(nameof(CanStartProcessing));
+                    OnPropertyChanged(nameof(CanCancelProcessing));
+                    break;
+            }
+        }
+
+        private void OnPanelVisibilityServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // Forward property changes from PanelVisibilityService to MainViewModel
+            switch (e.PropertyName)
+            {
+                case nameof(IPanelVisibilityService.IsMonoModeVisible):
+                    OnPropertyChanged(nameof(IsMonoModeVisible));
+                    break;
+                case nameof(IPanelVisibilityService.IsStereoModeVisible):
+                    OnPropertyChanged(nameof(IsStereoModeVisible));
+                    break;
+                case nameof(IPanelVisibilityService.IsAdvancedPanelVisible):
+                    OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    break;
+                case nameof(IPanelVisibilityService.IsMonoAdvancedPanelVisible):
+                    OnPropertyChanged(nameof(IsMonoAdvancedPanelVisible));
+                    break;
+                case nameof(IPanelVisibilityService.IsStereoAdvancedPanelVisible):
+                    OnPropertyChanged(nameof(IsStereoAdvancedPanelVisible));
+                    break;
+            }
         }
 
         #endregion
 
         #region Private Methods
 
-        private void UpdateStatus(string message, double? progress = null)
+        /// <summary>
+        /// Updates panel visibility service with current settings
+        /// </summary>
+        private void UpdatePanelVisibility()
         {
-            StatusText = message;
-            if (progress.HasValue)
-            {
-                StatusProgress = progress.Value;
-                IsProgressVisible = true;
-            }
-            else
-            {
-                IsProgressVisible = false;
-            }
+            _panelVisibilityService.UpdateVisibilityForMode(
+                Settings.CurrentMode,
+                Settings.MonoMode.SelectedAction,
+                Settings.StereoMode.SelectedAction);
         }
 
         private void CheckForPathCollisions(string context)
@@ -965,6 +972,9 @@ namespace Audiobook_Compressor.ViewModels
             OnPropertyChanged(nameof(IsStereoCopySelected));
             OnPropertyChanged(nameof(IsStereoConvertSelected));
             OnPropertyChanged(nameof(IsStereoAdvancedSelected));
+
+            // Update panel visibility for new mode
+            UpdatePanelVisibility();
         }
 
         #endregion
@@ -988,6 +998,8 @@ namespace Audiobook_Compressor.ViewModels
         {
             _audioService.ProgressChanged -= OnAudioProgressChanged;
             _audioService.FileProcessed -= OnAudioFileProcessed;
+            _uiStateService.PropertyChanged -= OnUIStateServicePropertyChanged;
+            _panelVisibilityService.PropertyChanged -= OnPanelVisibilityServicePropertyChanged;
             _cancellationTokenSource?.Dispose();
         }
 

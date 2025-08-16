@@ -1,5 +1,5 @@
 Filename: ChangelogExperimental.md  
-Last Updated: 2025-08-09 13:15 CEST
+Last Updated: 2025-08-09 15:05 CEST
 Version: 1.2.I  
 State: Experimental  
 Signed: Vanguard
@@ -11,6 +11,16 @@ This file contains a detailed, granular log of all changes made on the experimen
 ## **[Unreleased]**
 
 ### **Added**
+- 1.2.I: fix: Comprehensive polishing pass implementation per Focus 16.6.0 - Corrected versioning discrepancy by standardizing all files to version 1.2.I following MAJOR.MINOR.LETTER format for experimental cycles.
+- 1.2.I: fix: Advanced panel visibility bug per Focus 16.6.0 - Added Initialize method to IPanelVisibilityService and PanelVisibilityService to properly initialize service with loaded settings state, preventing advanced panel display issues when switching modes.
+- 1.2.I: refactor: Test project organization per Focus 16.6.0 - Updated test project namespace to AudiobookCompressor.Tests.Services following standardized [ProjectName].Tests.[Purpose] naming convention for better organization and future extensibility.
+- 1.2.I: docs: Enhanced Testing-Architecture.md per Focus 16.6.0 - Added comprehensive section documenting test execution procedures for AudiobookCompressor.Tests.Services suite including Visual Studio and command-line execution methods, test structure, and expected results.
+- 1.2.I: test: Enhanced PanelVisibilityService test coverage per Focus 16.6.0 - Added 4 comprehensive unit tests for new Initialize method covering parameter validation, state setting, advanced panel scenarios, and property change notifications.
+- 1.2.I: feat: Phase 1 Modularization Implementation per Focus 16.2.0 - Created IUIStateService and UIStateService for centralized UI state management including status, progress, and logging extracted from MainViewModel.
+- 1.2.I: feat: Phase 1 Modularization Implementation per Focus 16.2.0 - Created IPanelVisibilityService and PanelVisibilityService for centralized panel visibility management based on mode and action selection extracted from MainViewModel.
+- 1.2.I: feat: Phase 1 Modularization Implementation per Focus 16.2.0 - Updated MainViewModel to delegate UI state and panel visibility logic to specialized services while maintaining XAML binding compatibility through property delegation and event forwarding.
+- 1.2.I: feat: Phase 1 Modularization Implementation per Focus 16.2.0 - Updated App.xaml.cs dependency injection container to register new IUIStateService and IPanelVisibilityService as singletons for proper service lifecycle management.
+- 1.2.I: test: Phase 1 Modularization Implementation per Focus 16.2.0 - Created comprehensive unit test suites for UIStateService and PanelVisibilityService with 100% method coverage and extensive scenario testing including property change notifications and edge cases.
 - 1.2.B: feat: Created ProcessingContext class to bridge UI hierarchical settings with AudioProcessor logic per Focus 5.0.0 directive.
 - 1.2.B: feat: Implemented complete Focus 5.0.0 contextual file handling decision tree in AudioProcessor with support for all 6 user scenarios.
 - 1.2.B: feat: Added ProcessAsException method for handling mismatched file types (stereo files in mono mode, mono files in stereo mode).

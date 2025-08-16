@@ -1,6 +1,6 @@
 ﻿Filename: Testing-Architecture.md  
-Last Updated: 2025-08-07 12:43 CEST  
-Version: 1.2.E  
+Last Updated: 2025-08-09 15:05 CEST  
+Version: 1.2.I  
 State: Experimental  
 Signed: Vanguard
 
@@ -52,6 +52,59 @@ dotnet test "Audiobook Compressor.Tests/AudiobookCompressor.Tests.csproj" --coll
 - **Total Tests**: 11 test cases covering all processing scenarios
 - **Execution Time**: < 1 second (pure logic tests without I/O)
 - **Success Criteria**: All tests should pass consistently
+
+### **2.4 AudiobookCompressor.Tests.Services Test Suite**
+
+The Phase 1 modularization implementation includes a dedicated test suite for service layer components:
+
+#### **2.4.1 Service Test Execution**
+
+**Visual Studio Test Explorer:**
+1. **Build the solution** to compile both test projects
+2. **Open Test Explorer** (Test → Test Explorer)
+3. **Filter by project** to run only service tests: Click filter button and select "AudiobookCompressor.Tests.Services"
+4. **Run service tests** by clicking "Run All Tests in View" or use Ctrl+R, A
+5. **View detailed results** in Test Explorer with pass/fail status for each service
+
+**Command Line Execution:**
+```bash
+# Run all service layer tests
+dotnet test AudiobookCompressor.Tests.Services
+
+# Run with detailed output
+dotnet test AudiobookCompressor.Tests.Services --verbosity detailed
+
+# Run specific service test class
+dotnet test AudiobookCompressor.Tests.Services --filter "ClassName=UIStateServiceTests"
+dotnet test AudiobookCompressor.Tests.Services --filter "ClassName=PanelVisibilityServiceTests"
+
+# Run tests with specific pattern
+dotnet test AudiobookCompressor.Tests.Services --filter "TestCategory=PropertyChanged"
+```
+
+#### **2.4.2 Service Test Suite Structure**
+
+**UIStateServiceTests (27 test methods):**
+- Constructor and default state validation
+- Status update functionality with progress handling
+- Log management (append, clear, multiple messages)
+- Processing state management
+- Property change notification verification
+- Edge case handling (null values, boundary conditions)
+
+**PanelVisibilityServiceTests (15 test methods):**
+- Mode visibility logic (Mono/Stereo switching)
+- Advanced panel visibility based on actions
+- Mode-specific advanced panel visibility
+- Property change optimization (no unnecessary notifications)
+- Complex scenario testing (mode and action combinations)
+- Initialization and refresh functionality
+
+#### **2.4.3 Expected Service Test Results**
+- **Total Service Tests**: 42 test cases (UIStateService: 27, PanelVisibilityService: 15)
+- **Execution Time**: < 500ms (fast property and logic tests)
+- **Coverage**: 100% method coverage for Phase 1 modularization services
+- **Success Criteria**: All service tests should pass consistently without external dependencies
 
 ---
 

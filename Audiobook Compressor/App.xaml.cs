@@ -1,13 +1,14 @@
 ﻿/*
     Filename: App.xaml.cs
-    Last Updated: 2025-08-09 13:55 CEST
-    Version: 1.2.H
+    Last Updated: 2025-08-09 15:05 CEST
+    Version: 1.2.I
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
-    Enhanced dependency injection container with settings persistence on application exit per Focus 15.4.0 implementation.
-    MainViewModel is now Singleton for graceful shutdown access, with OnExit calling settings persistence.
+    Enhanced dependency injection container with Phase 1 modularization services per Focus 16.2.0 implementation.
+    Added IUIStateService and IPanelVisibilityService registration for MainViewModel modularization.
+    Maintains settings persistence on application exit and graceful shutdown management.
 */
 
 using System;
@@ -68,6 +69,10 @@ namespace Audiobook_Compressor
             services.AddTransient<IAudioService, AudioService>();
             services.AddSingleton<IDialogService, DialogService>();
             services.AddSingleton<IValidationService, ValidationService>();
+
+            // Register Phase 1 Modularization Services
+            services.AddSingleton<IUIStateService, UIStateService>();
+            services.AddSingleton<IPanelVisibilityService, PanelVisibilityService>();
 
             // Register ViewModels - Singleton for application exit access
             services.AddSingleton<MainViewModel>();
