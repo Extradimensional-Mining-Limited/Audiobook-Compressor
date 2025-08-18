@@ -1,12 +1,14 @@
 /*
     Filename: Settings.cs
-    Last Updated: 2025-08-06 08:39 CEST
-    Version: 1.2.D
+    Last Updated: 2025-08-09 18:45 CEST
+    Version: 1.2.J
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
     Extended CompressionSettings with SubThresholdAction and CustomTargetBitrate properties to support Advanced panel sub-threshold behavior per Focus 5.0.4.
+    Enhanced with Stereo mode default fix per Focus 17.4.0 Bug #35.
+    Final polishing pass per Focus 17.6.0: Corrected explicit default radio button logic per Bug #37.
 */
 
 using System;
@@ -136,8 +138,8 @@ namespace Audiobook_Compressor.Models
     /// </summary>
     public class ApplicationSettings : INotifyPropertyChanged
     {
-        private ModeSettings _monoMode = new();
-        private ModeSettings _stereoMode = new();
+        private ModeSettings _monoMode = new() { SelectedAction = "Convert" }; // Bug #37: Ensure explicit "Convert" for Mono
+        private ModeSettings _stereoMode = new() { SelectedAction = "Copy" }; // Bug #37: Ensure explicit "Copy" for Stereo
         private string _sourcePath = string.Empty;
         private string _outputPath = string.Empty;
         private string _defaultOutputPath = string.Empty;

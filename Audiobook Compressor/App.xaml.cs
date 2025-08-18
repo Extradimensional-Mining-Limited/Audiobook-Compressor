@@ -1,13 +1,14 @@
 ﻿/*
     Filename: App.xaml.cs
-    Last Updated: 2025-08-09 15:05 CEST
-    Version: 1.2.I
+    Last Updated: 2025-08-09 16:00 CEST
+    Version: 1.2.J
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
     Enhanced dependency injection container with Phase 1 modularization services per Focus 16.2.0 implementation.
     Added IUIStateService and IPanelVisibilityService registration for MainViewModel modularization.
+    Phase 2 enhancement per Focus 17.2.0: Added ISettingsBindingService registration for complex settings validation.
     Maintains settings persistence on application exit and graceful shutdown management.
 */
 
@@ -73,6 +74,9 @@ namespace Audiobook_Compressor
             // Register Phase 1 Modularization Services
             services.AddSingleton<IUIStateService, UIStateService>();
             services.AddSingleton<IPanelVisibilityService, PanelVisibilityService>();
+
+            // Register Phase 2 Modularization Services
+            services.AddSingleton<ISettingsBindingService, SettingsBindingService>();
 
             // Register ViewModels - Singleton for application exit access
             services.AddSingleton<MainViewModel>();

@@ -1,13 +1,15 @@
 ﻿<!--
     Filename: MainWindow.xaml
-    Last Updated: 2025-08-09 12:30 CEST
-    Version: 1.2.G
+    Last Updated: 2025-08-09 18:45 CEST
+    Version: 1.2.J
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
     MVVM data binding implementation - Phase 3 basic controls conversion per Focus 14.1.0.
     Converting from event-driven code-behind to pure XAML data binding with MainViewModel.
+    Enhanced with bold radio button styling per Focus 17.4.0 UI #28.
+    Final polishing pass per Focus 17.6.0: Fixed ComboBox focus loss bug with UpdateSourceTrigger=LostFocus.
 -->
 <Window x:Class="Audiobook_Compressor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -39,6 +41,10 @@
             <Setter Property="Padding" Value="30,10"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Margin" Value="5,0,0,0"/>
+        </Style>
+        <!-- Style for default radio button options per Focus 17.4.0 UI #28 -->
+        <Style x:Key="DefaultRadioButtonStyle" TargetType="RadioButton">
+            <Setter Property="FontWeight" Value="Bold"/>
         </Style>
         <Style x:Key="SettingsComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Height" Value="28"/>
@@ -234,6 +240,7 @@
                                            GroupName="MonoModeGroup" Margin="0,0,10,0"/>
                                 <RadioButton IsChecked="{Binding IsMonoConvertSelected, Mode=TwoWay}"
                                            Content="Convert stereo to mono" 
+                                           Style="{StaticResource DefaultRadioButtonStyle}"
                                            GroupName="MonoModeGroup" Margin="0,0,10,0"/>
                                 <RadioButton IsChecked="{Binding IsMonoAdvancedSelected, Mode=TwoWay}"
                                            Content="Advanced..." 
@@ -246,13 +253,13 @@
                                 <ComboBox SelectedItem="{Binding MonoAdvancedSettings.ChannelMode, Mode=TwoWay}"
                                           ItemsSource="{Binding ChannelOptions}"
                                           MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox Text="{Binding MonoAdvancedSettings.TargetBitrate, Mode=TwoWay}"
+                                <ComboBox Text="{Binding MonoAdvancedSettings.TargetBitrate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                           ItemsSource="{Binding BitrateOptions}"
                                           MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
                                 <ComboBox SelectedItem="{Binding MonoAdvancedSettings.SampleRate, Mode=TwoWay}"
                                           ItemsSource="{Binding SampleRateOptions}"
                                           MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox Text="{Binding MonoAdvancedSettings.ConversionThreshold, Mode=TwoWay}"
+                                <ComboBox Text="{Binding MonoAdvancedSettings.ConversionThreshold, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                           ItemsSource="{Binding BitrateOptions}"
                                           MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
                                 <ComboBox SelectedItem="{Binding MonoAdvancedSettings.EncodingType, Mode=TwoWay}"
@@ -289,7 +296,7 @@
                                                                  ConverterParameter=ConvertTo, Mode=TwoWay}"
                                                      GroupName="MonoAdvancedSubThresholdGroup" 
                                                      Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                        <ComboBox Text="{Binding MonoAdvancedSettings.CustomTargetBitrate, Mode=TwoWay}"
+                                        <ComboBox Text="{Binding MonoAdvancedSettings.CustomTargetBitrate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                                   IsEnabled="{Binding Path=MonoAdvancedSettings.SubThresholdAction, 
                                                               Converter={StaticResource RadioButtonToStringConverter}, 
                                                               ConverterParameter=ConvertTo}"
@@ -310,6 +317,7 @@
                             <WrapPanel Margin="0,10,0,0">
                                 <RadioButton IsChecked="{Binding IsStereoCopySelected, Mode=TwoWay}"
                                            Content="Copy mono files" 
+                                           Style="{StaticResource DefaultRadioButtonStyle}"
                                            GroupName="StereoModeGroup" Margin="0,0,10,0"/>
                                 <RadioButton IsChecked="{Binding IsStereoConvertSelected, Mode=TwoWay}"
                                            Content="Convert mono to stereo" 
@@ -324,13 +332,13 @@
                                 <ComboBox SelectedItem="{Binding StereoAdvancedSettings.ChannelMode, Mode=TwoWay}"
                                           ItemsSource="{Binding ChannelOptions}"
                                           MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox Text="{Binding StereoAdvancedSettings.TargetBitrate, Mode=TwoWay}"
+                                <ComboBox Text="{Binding StereoAdvancedSettings.TargetBitrate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                           ItemsSource="{Binding BitrateOptions}"
                                           MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
                                 <ComboBox SelectedItem="{Binding StereoAdvancedSettings.SampleRate, Mode=TwoWay}"
                                           ItemsSource="{Binding SampleRateOptions}"
                                           MinWidth="90" Margin="3" Style="{StaticResource SettingsComboBoxStyle}"/>
-                                <ComboBox Text="{Binding StereoAdvancedSettings.ConversionThreshold, Mode=TwoWay}"
+                                <ComboBox Text="{Binding StereoAdvancedSettings.ConversionThreshold, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                           ItemsSource="{Binding BitrateOptions}"
                                           MinWidth="80" Margin="3" Style="{StaticResource SettingsComboBoxStyle}" IsEditable="True"/>
                                 <ComboBox SelectedItem="{Binding StereoAdvancedSettings.EncodingType, Mode=TwoWay}"
@@ -367,7 +375,7 @@
                                                                  ConverterParameter=ConvertTo, Mode=TwoWay}"
                                                      GroupName="StereoAdvancedSubThresholdGroup" 
                                                      Margin="0,0,5,0" VerticalAlignment="Center"/>
-                                        <ComboBox Text="{Binding StereoAdvancedSettings.CustomTargetBitrate, Mode=TwoWay}"
+                                        <ComboBox Text="{Binding StereoAdvancedSettings.CustomTargetBitrate, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
                                                   IsEnabled="{Binding Path=StereoAdvancedSettings.SubThresholdAction, 
                                                               Converter={StaticResource RadioButtonToStringConverter}, 
                                                               ConverterParameter=ConvertTo}"

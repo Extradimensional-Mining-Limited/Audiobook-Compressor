@@ -1,13 +1,14 @@
 /*
     Filename: PanelVisibilityService.cs
-    Last Updated: 2025-08-09 15:05 CEST
-    Version: 1.2.I
+    Last Updated: 2025-08-09 16:15 CEST
+    Version: 1.2.J
     State: Experimental
     Signed: Vanguard
 
     Synopsis:
     Concrete implementation of IPanelVisibilityService, managing panel visibility logic per Focus 16.2.0 Phase 1 implementation.
     Centralizes mode-dependent visibility calculations extracted from MainViewModel.
+    Enhanced with additional validation and logging per Focus 17.4.0 Bug #33 definitive fix.
 */
 
 using System.ComponentModel;
@@ -69,20 +70,30 @@ namespace Audiobook_Compressor.Services
         #region Public Methods
 
         /// <summary>
-        /// Updates visibility for the specified mode and action
+        /// Updates visibility for the specified mode and action with enhanced validation per Focus 17.4.0 Bug #33
         /// </summary>
         /// <param name="currentMode">Current mode (Mono/Stereo)</param>
         /// <param name="monoAction">Selected action for Mono mode</param>
         /// <param name="stereoAction">Selected action for Stereo mode</param>
         public void UpdateVisibilityForMode(string currentMode, string monoAction, string stereoAction)
         {
+            // Enhanced validation per Focus 17.4.0 Bug #33 definitive fix attempt
+            if (string.IsNullOrEmpty(currentMode) || string.IsNullOrEmpty(monoAction) || string.IsNullOrEmpty(stereoAction))
+            {
+                System.Diagnostics.Debug.WriteLine($"UpdateVisibilityForMode: Invalid parameters - Mode:{currentMode}, Mono:{monoAction}, Stereo:{stereoAction}");
+                return;
+            }
+
             var modeChanged = _currentMode != currentMode;
             var monoActionChanged = _monoSelectedAction != monoAction;
             var stereoActionChanged = _stereoSelectedAction != stereoAction;
 
-            _currentMode = currentMode ?? "Mono";
-            _monoSelectedAction = monoAction ?? "Copy";
-            _stereoSelectedAction = stereoAction ?? "Copy";
+            _currentMode = currentMode;
+            _monoSelectedAction = monoAction;
+            _stereoSelectedAction = stereoAction;
+
+            // Enhanced logging for debugging
+            System.Diagnostics.Debug.WriteLine($"UpdateVisibilityForMode: Updated state - Mode:{_currentMode}, Mono:{_monoSelectedAction}, Stereo:{_stereoSelectedAction}");
 
             // Notify property changes only if values actually changed
             if (modeChanged)
@@ -90,6 +101,7 @@ namespace Audiobook_Compressor.Services
                 OnPropertyChanged(nameof(IsMonoModeVisible));
                 OnPropertyChanged(nameof(IsStereoModeVisible));
                 OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                System.Diagnostics.Debug.WriteLine("UpdateVisibilityForMode: Mode visibility properties updated");
             }
 
             if (monoActionChanged)
@@ -98,6 +110,7 @@ namespace Audiobook_Compressor.Services
                 if (_currentMode == "Mono")
                 {
                     OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    System.Diagnostics.Debug.WriteLine("UpdateVisibilityForMode: Mono advanced properties updated");
                 }
             }
 
@@ -107,6 +120,7 @@ namespace Audiobook_Compressor.Services
                 if (_currentMode == "Stereo")
                 {
                     OnPropertyChanged(nameof(IsAdvancedPanelVisible));
+                    System.Diagnostics.Debug.WriteLine("UpdateVisibilityForMode: Stereo advanced properties updated");
                 }
             }
         }
