@@ -1,12 +1,12 @@
 Filename: ToDo.md  
-Last Updated: 2025-08-18 03:08 AM CEST  
-Version: 1.2.J  
+Last Updated: 2025-08-18 04:50 AM CEST  
+Version: 1.2.K  
 State: Experimental  
 Signed: Telos  
 Synopsis:  
 An actionable checklist for the development cycles leading up to the 1.3.0 release, organized by cycle.
 
-### **Project Roadmap & To-Do List \- Version 1.2.J**
+### **Project Roadmap & To-Do List \- Version 1.2.K**
 
 This document outlines the strategic roadmap for the Audiobook Compressor project, organized as an actionable checklist for the development cycles leading to the 1.3.0 release.
 
@@ -19,24 +19,18 @@ This document outlines the strategic roadmap for the Audiobook Compressor projec
 * (Process): A task related to improving our development workflow.  
 * (Testing): A task related to creating or improving tests.
 
-### **Current Cycle: 1.2.K \- Final Modularization**
-
-* **Objective:** Complete the MainViewModel modularization (Task \#30).  
-* **"Gremlin Hunt":** Continue the investigation and attempted fix for the persistent UI bugs.  
-* \[ \] **(Refactor)** \#30: Post-MVVM: Progressively refactor code clusters.  
-  * \[ \] Phase 3: Specialized Services (RadioButtonStateService, PathManagementService)  
-  * \[ \] Phase 4: Integration & Optimization  
-* \[ \] **(Bug)** \#33: Advanced panel visibility fails to update correctly on primary mode switch.  
-* \[ \] **(Process)** \#34: **(Manual Task)** Rename physical test project folders to align with standardized naming convention. *Note: Vanguard has a tooling limitation preventing this.*  
-* \[ \] **(Bug)** \#23: Refine ComboBox focus loss behavior to commit value when clicking on empty window space.
-
-### **Upcoming Cycle: 1.2.L \- Input & Settings Robustness**
+### **Current Cycle: 1.2.L \- Input & Settings Robustness**
 
 * **Objective:** Secure the application's "front door" by addressing all bugs related to user input and settings file integrity.  
-* \[ \] **(Bug)** \#24: Re-implement validation and sanitization for user-entered bitrate strings.  
-* \[ \] **(Bug)** \#25: Remove the faulty and unreliable bitrate/threshold collision detection logic.  
-* \[ \] **(Bug)** \#14: Add settings validation on load to gracefully handle corrupted or malformed user-settings.xml files.  
-* \[ \] **(Bug)** \#11: Add validation for SelectedAction property values ("Copy", "Convert", "Advanced") loaded from settings.
+* **"Gremlin Hunt":** Continue the investigation and attempted fix for persistent UI bugs.  
+* **Primary Tasks:**  
+  * \[ \] **(Bug)** \#24: Re-implement validation and sanitization for user-entered bitrate strings.  
+  * \[ \] **(Bug)** \#25: Remove the faulty and unreliable bitrate/threshold collision detection logic.  
+  * \[ \] **(Bug)** \#14: Add settings validation on load to gracefully handle corrupted or malformed user-settings.xml files.  
+  * \[ \] **(Bug)** \#11: Add validation for SelectedAction property values ("Copy", "Convert", "Advanced") loaded from settings.  
+* **Gremlin Hunt Tasks:**  
+  * \[ \] **(Bug)** \#33: Advanced panel visibility fails to update correctly on primary mode switch.  
+  * \[ \] **(Bug)** \#23: Refine ComboBox focus loss behavior to commit value when clicking on empty window space.
 
 ### **Upcoming Cycle: 1.2.M \- File System & External Tool Safety**
 
@@ -92,6 +86,8 @@ This document outlines the strategic roadmap for the Audiobook Compressor projec
 
 ### **Completed**
 
+* \[X\] **(Refactor)** \#30: Post-MVVM: Progressively refactor code clusters.  
+* \[X\] **(Process)** \#34: **(Manual Task)** Rename physical test project folders.  
 * \[X\] **(Bug)** \#37: Review and correct default radio button logic.  
 * \[X\] **(Bug)** \#36: Refactor settings summary to consistently display main settings followed by the full label of the selected action.  
 * \[X\] **(Bug)** \#35: Stereo mode default radio button is incorrect; should be "Copy mono files".  
