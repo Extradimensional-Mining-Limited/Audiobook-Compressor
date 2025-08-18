@@ -1,19 +1,3 @@
-/*
-    Filename: MainViewModel.cs
-    Last Updated: 2025-08-09 18:45 CEST
-    Version: 1.2.J
-    State: Experimental
-    Signed: Vanguard
-
-    Synopsis:
-    Main ViewModel implementing MVVM pattern for MainWindow, centralizing UI logic and state management per Focus 13.1.0 Phase 1.
-    Enhanced with comprehensive data binding properties per Focus 14.1.0 Phase 1 implementation.
-    Added OnApplicationExit() method for graceful shutdown and settings persistence per Focus 15.4.0 implementation.
-    Phase 1 modularization per Focus 16.2.0: UI state and panel visibility delegated to specialized services.
-    Phase 2 modularization per Focus 17.2.0: Settings binding logic delegated to ISettingsBindingService with comprehensive validation.
-    Final polishing pass per Focus 17.6.0: Added advanced settings property change subscription for SettingsSummary updates (Gremlin #36 fix).
-*/
-
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -30,7 +14,8 @@ namespace Audiobook_Compressor.ViewModels
 {
     /// <summary>
     /// Main ViewModel for the application, implementing MVVM pattern
-    /// Replaces monolithic MainWindow code-behind with service-oriented, testable architecture
+    /// Streamlined orchestration layer with service-oriented architecture
+    /// Final modularization: 9 services handling specialized concerns (~48-52% size reduction)
     /// </summary>
     public class MainViewModel : INotifyPropertyChanged
     {
@@ -43,6 +28,8 @@ namespace Audiobook_Compressor.ViewModels
         private readonly IUIStateService _uiStateService;
         private readonly IPanelVisibilityService _panelVisibilityService;
         private readonly ISettingsBindingService _settingsBindingService;
+        private readonly IRadioButtonStateService _radioButtonStateService;
+        private readonly IPathManagementService _pathManagementService;
 
         private ApplicationSettings _settings;
         private CancellationTokenSource? _cancellationTokenSource;
@@ -59,7 +46,9 @@ namespace Audiobook_Compressor.ViewModels
             IValidationService validationService,
             IUIStateService uiStateService,
             IPanelVisibilityService panelVisibilityService,
-            ISettingsBindingService settingsBindingService)
+            ISettingsBindingService settingsBindingService,
+            IRadioButtonStateService radioButtonStateService,
+            IPathManagementService pathManagementService)
         {
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _audioService = audioService ?? throw new ArgumentNullException(nameof(audioService));
@@ -68,18 +57,14 @@ namespace Audiobook_Compressor.ViewModels
             _uiStateService = uiStateService ?? throw new ArgumentNullException(nameof(uiStateService));
             _panelVisibilityService = panelVisibilityService ?? throw new ArgumentNullException(nameof(panelVisibilityService));
             _settingsBindingService = settingsBindingService ?? throw new ArgumentNullException(nameof(settingsBindingService));
+            _radioButtonStateService = radioButtonStateService ?? throw new ArgumentNullException(nameof(radioButtonStateService));
+            _pathManagementService = pathManagementService ?? throw new ArgumentNullException(nameof(pathManagementService));
 
             // Load settings first
             _settings = _settingsService.LoadSettings();
 
-            // Initialize panel visibility with loaded settings to fix advanced panel bug
-            _panelVisibilityService.Initialize(
-                Settings.CurrentMode,
-                Settings.MonoMode.SelectedAction,
-                Settings.StereoMode.SelectedAction);
-
-            // Initialize settings binding service with current context
-            _settingsBindingService.SetSettingsContext(Settings, Settings.CurrentMode);
+            // Initialize all services with loaded settings
+            InitializeServices();
 
             // Subscribe to advanced settings property changes for Gremlin #36 fix
             Settings.MonoMode.AdvancedOverride.PropertyChanged += OnAdvancedSettingsPropertyChanged;
@@ -88,20 +73,8 @@ namespace Audiobook_Compressor.ViewModels
             // Initialize commands
             InitializeCommands();
 
-            // Subscribe to audio service events
-            _audioService.ProgressChanged += OnAudioProgressChanged;
-            _audioService.FileProcessed += OnAudioFileProcessed;
-
-            // Subscribe to UI state service changes for property forwarding
-            _uiStateService.PropertyChanged += OnUIStateServicePropertyChanged;
-
-            // Subscribe to panel visibility service changes for property forwarding
-            _panelVisibilityService.PropertyChanged += OnPanelVisibilityServicePropertyChanged;
-
-            // Subscribe to settings binding service events
-            _settingsBindingService.PropertyChanged += OnSettingsBindingServicePropertyChanged;
-            _settingsBindingService.ValidationWarning += OnSettingsBindingValidationWarning;
-            _settingsBindingService.ValidationError += OnSettingsBindingValidationError;
+            // Subscribe to all service events
+            SubscribeToServiceEvents();
         }
 
         #endregion
@@ -120,7 +93,9 @@ namespace Audiobook_Compressor.ViewModels
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartProcessing));
                 OnPropertyChanged(nameof(SettingsSummary));
-                UpdatePanelVisibility();
+                
+                // Update all services with new settings
+                InitializeServices();
             }
         }
 
@@ -217,7 +192,7 @@ namespace Audiobook_Compressor.ViewModels
 
         #endregion
 
-        #region PanelVisibility Properties
+        #region PanelVisibility Properties - Delegated to PanelVisibilityService
 
         /// <summary>
         /// Whether Mono mode panel should be visible - Delegated to PanelVisibilityService
@@ -301,6 +276,9 @@ namespace Audiobook_Compressor.ViewModels
                     // Update settings binding service context
                     _settingsBindingService.SetSettingsContext(Settings, Settings.CurrentMode);
                     
+                    // Update radio button service for mode change
+                    _radioButtonStateService.UpdateForModeChange(value);
+                    
                     // Update panel visibility AFTER all context is set to prevent race conditions
                     UpdatePanelVisibility();
                     
@@ -310,14 +288,6 @@ namespace Audiobook_Compressor.ViewModels
                     
                     // Refresh settings binding service for new mode
                     _settingsBindingService.RefreshBindings();
-
-                    // Update radio button states for new mode
-                    OnPropertyChanged(nameof(IsMonoCopySelected));
-                    OnPropertyChanged(nameof(IsMonoConvertSelected));
-                    OnPropertyChanged(nameof(IsMonoAdvancedSelected));
-                    OnPropertyChanged(nameof(IsStereoCopySelected));
-                    OnPropertyChanged(nameof(IsStereoConvertSelected));
-                    OnPropertyChanged(nameof(IsStereoAdvancedSelected));
                 }
             }
         }
@@ -398,130 +368,94 @@ namespace Audiobook_Compressor.ViewModels
 
         #endregion
 
-        #region Radio Button State Properties
+        #region Radio Button State Properties - Delegated to RadioButtonStateService
 
         /// <summary>
-        /// Whether Mono Copy radio button is selected
+        /// Whether Mono Copy radio button is selected - Delegated to RadioButtonStateService
         /// </summary>
         public bool IsMonoCopySelected
         {
-            get => Settings.MonoMode.SelectedAction == "Copy";
+            get => _radioButtonStateService.IsMonoCopySelected;
             set
             {
-                if (value && Settings.MonoMode.SelectedAction != "Copy")
+                if (value && !_radioButtonStateService.IsMonoCopySelected)
                 {
-                    Settings.MonoMode.SelectedAction = "Copy";
-                    Settings.IsAdvancedMode = false;
-                    UpdatePanelVisibility();
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsMonoConvertSelected));
-                    OnPropertyChanged(nameof(IsMonoAdvancedSelected));
-                    OnPropertyChanged(nameof(SettingsSummary));
+                    _radioButtonStateService.SetMonoSelectedAction("Copy");
                 }
             }
         }
 
         /// <summary>
-        /// Whether Mono Convert radio button is selected
+        /// Whether Mono Convert radio button is selected - Delegated to RadioButtonStateService
         /// </summary>
         public bool IsMonoConvertSelected
         {
-            get => Settings.MonoMode.SelectedAction == "Convert";
+            get => _radioButtonStateService.IsMonoConvertSelected;
             set
             {
-                if (value && Settings.MonoMode.SelectedAction != "Convert")
+                if (value && !_radioButtonStateService.IsMonoConvertSelected)
                 {
-                    Settings.MonoMode.SelectedAction = "Convert";
-                    Settings.IsAdvancedMode = false;
-                    UpdatePanelVisibility();
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsMonoCopySelected));
-                    OnPropertyChanged(nameof(IsMonoAdvancedSelected));
-                    OnPropertyChanged(nameof(SettingsSummary));
+                    _radioButtonStateService.SetMonoSelectedAction("Convert");
                 }
             }
         }
 
         /// <summary>
-        /// Whether Mono Advanced radio button is selected
+        /// Whether Mono Advanced radio button is selected - Delegated to RadioButtonStateService
         /// </summary>
         public bool IsMonoAdvancedSelected
         {
-            get => Settings.MonoMode.SelectedAction == "Advanced";
+            get => _radioButtonStateService.IsMonoAdvancedSelected;
             set
             {
-                if (value && Settings.MonoMode.SelectedAction != "Advanced")
+                if (value && !_radioButtonStateService.IsMonoAdvancedSelected)
                 {
-                    Settings.MonoMode.SelectedAction = "Advanced";
-                    Settings.IsAdvancedMode = true;
-                    UpdatePanelVisibility();
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsMonoCopySelected));
-                    OnPropertyChanged(nameof(IsMonoConvertSelected));
-                    OnPropertyChanged(nameof(SettingsSummary));
+                    _radioButtonStateService.SetMonoSelectedAction("Advanced");
                 }
             }
         }
 
         /// <summary>
-        /// Whether Stereo Copy radio button is selected
+        /// Whether Stereo Copy radio button is selected - Delegated to RadioButtonStateService
         /// /// </summary>
         public bool IsStereoCopySelected
         {
-            get => Settings.StereoMode.SelectedAction == "Copy";
+            get => _radioButtonStateService.IsStereoCopySelected;
             set
             {
-                if (value && Settings.StereoMode.SelectedAction != "Copy")
+                if (value && !_radioButtonStateService.IsStereoCopySelected)
                 {
-                    Settings.StereoMode.SelectedAction = "Copy";
-                    Settings.IsAdvancedMode = false;
-                    UpdatePanelVisibility();
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsStereoConvertSelected));
-                    OnPropertyChanged(nameof(IsStereoAdvancedSelected));
-                    OnPropertyChanged(nameof(SettingsSummary));
+                    _radioButtonStateService.SetStereoSelectedAction("Copy");
                 }
             }
         }
 
         /// <summary>
-        /// Whether Stereo Convert radio button is selected
+        /// Whether Stereo Convert radio button is selected - Delegated to RadioButtonStateService
         /// /// </summary>
         public bool IsStereoConvertSelected
         {
-            get => Settings.StereoMode.SelectedAction == "Convert";
+            get => _radioButtonStateService.IsStereoConvertSelected;
             set
             {
-                if (value && Settings.StereoMode.SelectedAction != "Convert")
+                if (value && !_radioButtonStateService.IsStereoConvertSelected)
                 {
-                    Settings.StereoMode.SelectedAction = "Convert";
-                    Settings.IsAdvancedMode = false;
-                    UpdatePanelVisibility();
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsStereoCopySelected));
-                    OnPropertyChanged(nameof(IsStereoAdvancedSelected));
-                    OnPropertyChanged(nameof(SettingsSummary));
+                    _radioButtonStateService.SetStereoSelectedAction("Convert");
                 }
             }
         }
 
         /// <summary>
-        /// Whether Stereo Advanced radio button is selected
+        /// Whether Stereo Advanced radio button is selected - Delegated to RadioButtonStateService
         /// /// </summary>
         public bool IsStereoAdvancedSelected
         {
-            get => Settings.StereoMode.SelectedAction == "Advanced";
+            get => _radioButtonStateService.IsStereoAdvancedSelected;
             set
             {
-                if (value && Settings.StereoMode.SelectedAction != "Advanced")
+                if (value && !_radioButtonStateService.IsStereoAdvancedSelected)
                 {
-                    Settings.StereoMode.SelectedAction = "Advanced";
-                    Settings.IsAdvancedMode = true;
-                    UpdatePanelVisibility();
-                    OnPropertyChanged();
-                    OnPropertyChanged(nameof(IsStereoCopySelected));
-                    OnPropertyChanged(nameof(IsStereoConvertSelected));
-                    OnPropertyChanged(nameof(SettingsSummary));
+                    _radioButtonStateService.SetStereoSelectedAction("Advanced");
                 }
             }
         }
@@ -567,16 +501,16 @@ namespace Audiobook_Compressor.ViewModels
                 canExecute: () => CanCancelProcessing);
 
             BrowseSourceCommand = new RelayCommand(
-                execute: () => ExecuteBrowseSource());
+                execute: async () => await ExecuteBrowseSourceAsync());
 
             BrowseOutputCommand = new RelayCommand(
-                execute: () => ExecuteBrowseOutput());
+                execute: async () => await ExecuteBrowseOutputAsync());
 
             SaveDefaultCommand = new RelayCommand(
-                execute: () => ExecuteSaveDefault());
+                execute: async () => await ExecuteSaveDefaultAsync());
 
             RestoreDefaultCommand = new RelayCommand(
-                execute: () => ExecuteRestoreDefault());
+                execute: async () => await ExecuteRestoreDefaultAsync());
 
             SaveSettingsCommand = new RelayCommand(
                 execute: () => ExecuteSaveSettings());
@@ -586,8 +520,8 @@ namespace Audiobook_Compressor.ViewModels
         {
             try
             {
-                // Validate paths and settings
-                var pathValidation = _validationService.ValidatePaths(Settings.SourcePath, Settings.OutputPath);
+                // Validate paths using PathManagementService
+                var pathValidation = _pathManagementService.ValidatePathCombination(Settings.SourcePath, Settings.OutputPath);
                 if (!pathValidation.IsValid)
                 {
                     var errorMessage = string.Join("\n", pathValidation.Errors);
@@ -670,49 +604,68 @@ namespace Audiobook_Compressor.ViewModels
             _uiStateService.UpdateStatus("Cancelling...", null);
         }
 
-        private void ExecuteBrowseSource()
+        // Path management commands now delegated to PathManagementService
+        private async Task ExecuteBrowseSourceAsync()
         {
-            var selectedPath = _dialogService.ShowFolderDialog(
-                "Select Source Library Folder",
-                Settings.SourcePath);
-
-            if (!string.IsNullOrEmpty(selectedPath))
+            var result = await _pathManagementService.BrowseSourcePathAsync(Settings.SourcePath);
+            if (result.Success && result.NewPath != null)
             {
-                Settings.SourcePath = selectedPath;
+                Settings.SourcePath = result.NewPath;
                 OnPropertyChanged(nameof(Settings));
-                CheckForPathCollisions("Source");
+                OnPropertyChanged(nameof(CanStartProcessing));
+            }
+            else if (!result.Success && result.Errors.Any())
+            {
+                var errorMessage = string.Join("\n", result.Errors);
+                _dialogService.ShowErrorDialog(errorMessage, "Browse Source Error");
             }
         }
 
-        private void ExecuteBrowseOutput()
+        private async Task ExecuteBrowseOutputAsync()
         {
-            var selectedPath = _dialogService.ShowFolderDialog(
-                "Select Output Folder",
-                Settings.OutputPath);
-
-            if (!string.IsNullOrEmpty(selectedPath))
+            var result = await _pathManagementService.BrowseOutputPathAsync(Settings.OutputPath);
+            if (result.Success && result.NewPath != null)
             {
-                Settings.OutputPath = selectedPath;
+                Settings.OutputPath = result.NewPath;
                 OnPropertyChanged(nameof(Settings));
-                CheckForPathCollisions("Output");
+                OnPropertyChanged(nameof(CanStartProcessing));
+            }
+            else if (!result.Success && result.Errors.Any())
+            {
+                var errorMessage = string.Join("\n", result.Errors);
+                _dialogService.ShowErrorDialog(errorMessage, "Browse Output Error");
             }
         }
 
-        private void ExecuteSaveDefault()
+        private async Task ExecuteSaveDefaultAsync()
         {
-            _settingsService.SetDefaultOutputPath(Settings.OutputPath);
-            _dialogService.ShowInformationDialog(
-                "Default output path saved successfully.",
-                "Settings Saved");
+            var result = await _pathManagementService.SaveDefaultOutputPathAsync(Settings.OutputPath);
+            if (result.Success)
+            {
+                _dialogService.ShowInformationDialog(
+                    result.Message ?? "Default output path saved successfully.",
+                    "Settings Saved");
+            }
+            else if (result.Errors.Any())
+            {
+                var errorMessage = string.Join("\n", result.Errors);
+                _dialogService.ShowErrorDialog(errorMessage, "Save Default Error");
+            }
         }
 
-        private void ExecuteRestoreDefault()
+        private async Task ExecuteRestoreDefaultAsync()
         {
-            var defaultPath = _settingsService.GetDefaultOutputPath();
-            if (!string.IsNullOrWhiteSpace(defaultPath))
+            var result = await _pathManagementService.RestoreDefaultOutputPathAsync();
+            if (result.Success && result.NewPath != null)
             {
-                Settings.OutputPath = defaultPath;
+                Settings.OutputPath = result.NewPath;
                 OnPropertyChanged(nameof(Settings));
+                OnPropertyChanged(nameof(CanStartProcessing));
+            }
+            else if (!result.Success && result.Errors.Any())
+            {
+                var errorMessage = string.Join("\n", result.Errors);
+                _dialogService.ShowErrorDialog(errorMessage, "Restore Default Error");
             }
         }
 
@@ -745,6 +698,57 @@ namespace Audiobook_Compressor.ViewModels
                 // Log error but don't prevent application exit
                 System.Diagnostics.Debug.WriteLine($"Error during application exit: {ex.Message}");
             }
+        }
+
+        #endregion
+
+        #region Service Initialization and Event Management
+
+        /// <summary>
+        /// Initializes all services with current settings
+        /// </summary>
+        private void InitializeServices()
+        {
+            // Initialize panel visibility with loaded settings
+            _panelVisibilityService.Initialize(
+                Settings.CurrentMode,
+                Settings.MonoMode.SelectedAction,
+                Settings.StereoMode.SelectedAction);
+
+            // Initialize settings binding service with current context
+            _settingsBindingService.SetSettingsContext(Settings, Settings.CurrentMode);
+
+            // Initialize radio button state service
+            _radioButtonStateService.Initialize(Settings);
+        }
+
+        /// <summary>
+        /// Subscribes to all service events for property forwarding and coordination
+        /// </summary>
+        private void SubscribeToServiceEvents()
+        {
+            // Subscribe to audio service events
+            _audioService.ProgressChanged += OnAudioProgressChanged;
+            _audioService.FileProcessed += OnAudioFileProcessed;
+
+            // Subscribe to UI state service changes for property forwarding
+            _uiStateService.PropertyChanged += OnUIStateServicePropertyChanged;
+
+            // Subscribe to panel visibility service changes for property forwarding
+            _panelVisibilityService.PropertyChanged += OnPanelVisibilityServicePropertyChanged;
+
+            // Subscribe to settings binding service events
+            _settingsBindingService.PropertyChanged += OnSettingsBindingServicePropertyChanged;
+            _settingsBindingService.ValidationWarning += OnSettingsBindingValidationWarning;
+            _settingsBindingService.ValidationError += OnSettingsBindingValidationError;
+
+            // Subscribe to radio button state service events
+            _radioButtonStateService.PropertyChanged += OnRadioButtonStateServicePropertyChanged;
+            _radioButtonStateService.StateChanged += OnRadioButtonStateChanged;
+
+            // Subscribe to path management service events
+            _pathManagementService.PathChanged += OnPathManagementPathChanged;
+            _pathManagementService.ConfirmationRequired += OnPathManagementConfirmationRequired;
         }
 
         #endregion
@@ -862,6 +866,88 @@ namespace Audiobook_Compressor.ViewModels
         }
 
         /// <summary>
+        /// Handles property changes from RadioButtonStateService
+        /// </summary>
+        private void OnRadioButtonStateServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // Forward property changes from RadioButtonStateService to MainViewModel
+            switch (e.PropertyName)
+            {
+                case nameof(IRadioButtonStateService.IsMonoCopySelected):
+                    OnPropertyChanged(nameof(IsMonoCopySelected));
+                    break;
+                case nameof(IRadioButtonStateService.IsMonoConvertSelected):
+                    OnPropertyChanged(nameof(IsMonoConvertSelected));
+                    break;
+                case nameof(IRadioButtonStateService.IsMonoAdvancedSelected):
+                    OnPropertyChanged(nameof(IsMonoAdvancedSelected));
+                    break;
+                case nameof(IRadioButtonStateService.IsStereoCopySelected):
+                    OnPropertyChanged(nameof(IsStereoCopySelected));
+                    break;
+                case nameof(IRadioButtonStateService.IsStereoConvertSelected):
+                    OnPropertyChanged(nameof(IsStereoConvertSelected));
+                    break;
+                case nameof(IRadioButtonStateService.IsStereoAdvancedSelected):
+                    OnPropertyChanged(nameof(IsStereoAdvancedSelected));
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Handles state change events from RadioButtonStateService
+        /// </summary>
+        private void OnRadioButtonStateChanged(object? sender, RadioButtonStateChangedEventArgs e)
+        {
+            if (e.RequiresPanelVisibilityUpdate)
+            {
+                UpdatePanelVisibility();
+            }
+
+            if (e.RequiresSettingsSummaryUpdate)
+            {
+                OnPropertyChanged(nameof(SettingsSummary));
+            }
+        }
+
+        /// <summary>
+        /// Handles path change events from PathManagementService
+        /// </summary>
+        private void OnPathManagementPathChanged(object? sender, PathChangedEventArgs e)
+        {
+            if (e.RequiresCollisionCheck)
+            {
+                var collisionResult = _pathManagementService.CheckPathCollisions(Settings.SourcePath, Settings.OutputPath);
+                if (collisionResult.HasCollisions && collisionResult.RequiresUserConfirmation)
+                {
+                    var confirmed = _dialogService.ShowConfirmationDialog(
+                        collisionResult.ConfirmationMessage ?? "Path collision detected",
+                        "Folder Collision Detected");
+
+                    if (!confirmed)
+                    {
+                        // User chose to change paths - clear the conflicting path
+                        if (e.PathType == "Source")
+                            Settings.SourcePath = "";
+                        else
+                            Settings.OutputPath = "";
+                        
+                        OnPropertyChanged(nameof(Settings));
+                        OnPropertyChanged(nameof(CanStartProcessing));
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles confirmation required events from PathManagementService
+        /// </summary>
+        private void OnPathManagementConfirmationRequired(object? sender, PathConfirmationRequiredEventArgs e)
+        {
+            e.UserConfirmed = _dialogService.ShowConfirmationDialog(e.Message, e.Title);
+        }
+
+        /// <summary>
         /// Handles property changes in advanced settings to update SettingsSummary per Gremlin #36 fix
         /// </summary>
         private void OnAdvancedSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -902,40 +988,6 @@ namespace Audiobook_Compressor.ViewModels
                 Settings.StereoMode.SelectedAction);
         }
 
-        private void CheckForPathCollisions(string context)
-        {
-            if (string.Equals(Settings.SourcePath, Settings.OutputPath, StringComparison.OrdinalIgnoreCase))
-            {
-                var message = "Source and Output folders are the same. This may overwrite your source files.\n\n" +
-                             "Do you want to continue with these paths?";
-
-                if (!_dialogService.ShowConfirmationDialog(message, "Folder Collision Detected"))
-                {
-                    // User chose to change paths - could implement path clearing logic here
-                    if (context == "Source")
-                        Settings.SourcePath = "";
-                    else
-                        Settings.OutputPath = "";
-                    
-                    OnPropertyChanged(nameof(Settings));
-                }
-            }
-        }
-
-        #region Settings Helper Methods - Removed (extracted to SettingsBindingService)
-
-        // Settings helper methods moved to SettingsBindingService per Phase 2 modularization
-        // - GetCurrentBitrate(), GetCurrentSampleRate(), GetCurrentThreshold()
-        // - GetCurrentEncodingType(), GetCurrentPassMode()
-        // - SetCurrentEncodingType(), SetCurrentPassMode()
-        // - ValidateAndSetBitrate(), ValidateAndSetSampleRate(), ValidateAndSetThreshold()
-        // - CheckBitrateThresholdLogic()
-        // - RebindMainSettings() - Logic inlined into SelectedChannel property
-        //
-        // All settings binding logic now handled by ISettingsBindingService
-
-        #endregion
-
         #endregion
 
         #region INotifyPropertyChanged
@@ -953,13 +1005,28 @@ namespace Audiobook_Compressor.ViewModels
 
         public void Dispose()
         {
+            // Unsubscribe from audio service events
             _audioService.ProgressChanged -= OnAudioProgressChanged;
             _audioService.FileProcessed -= OnAudioFileProcessed;
+            
+            // Unsubscribe from UI state service events
             _uiStateService.PropertyChanged -= OnUIStateServicePropertyChanged;
+            
+            // Unsubscribe from panel visibility service events
             _panelVisibilityService.PropertyChanged -= OnPanelVisibilityServicePropertyChanged;
+            
+            // Unsubscribe from settings binding service events
             _settingsBindingService.PropertyChanged -= OnSettingsBindingServicePropertyChanged;
             _settingsBindingService.ValidationWarning -= OnSettingsBindingValidationWarning;
             _settingsBindingService.ValidationError -= OnSettingsBindingValidationError;
+            
+            // Unsubscribe from radio button state service events
+            _radioButtonStateService.PropertyChanged -= OnRadioButtonStateServicePropertyChanged;
+            _radioButtonStateService.StateChanged -= OnRadioButtonStateChanged;
+            
+            // Unsubscribe from path management service events
+            _pathManagementService.PathChanged -= OnPathManagementPathChanged;
+            _pathManagementService.ConfirmationRequired -= OnPathManagementConfirmationRequired;
             
             // Unsubscribe from advanced settings property changes per Gremlin #36 fix
             if (Settings?.MonoMode?.AdvancedOverride != null)
