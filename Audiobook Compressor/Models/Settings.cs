@@ -1,14 +1,14 @@
 /*
     Filename: Settings.cs
-    Last Updated: 2025-08-09 18:45 CEST
-    Version: 1.2.J
+    Last Updated: 2025-08-19 22:45 CEST
+    Version: 1.2.L
     State: Experimental
-    Signed: Vanguard
+    Signed: Meridian
 
     Synopsis:
-    Extended CompressionSettings with SubThresholdAction and CustomTargetBitrate properties to support Advanced panel sub-threshold behavior per Focus 5.0.4.
-    Enhanced with Stereo mode default fix per Focus 17.4.0 Bug #35.
-    Final polishing pass per Focus 17.6.0: Corrected explicit default radio button logic per Bug #37.
+    Enhanced settings model with schema versioning per Focus 19.7.0 Task #40.
+    Added SettingsVersion property to ApplicationSettings for future migration capability foundation.
+    Maintained backward compatibility while establishing versioning framework for robust settings evolution.
 */
 
 using System;
@@ -135,6 +135,7 @@ namespace Audiobook_Compressor.Models
 
     /// <summary>
     /// Top-level application settings containing all mode-specific settings and application state
+    /// Enhanced with schema versioning for future migration capability
     /// </summary>
     public class ApplicationSettings : INotifyPropertyChanged
     {
@@ -145,6 +146,16 @@ namespace Audiobook_Compressor.Models
         private string _defaultOutputPath = string.Empty;
         private string _currentMode = "Mono";
         private bool _isAdvancedMode = false;
+        private string _settingsVersion = Settings.CurrentSettingsVersion;
+
+        /// <summary>
+        /// Schema version for settings file format - enables future migration capabilities
+        /// </summary>
+        public string SettingsVersion
+        {
+            get => _settingsVersion;
+            set { _settingsVersion = value; OnPropertyChanged(); }
+        }
 
         public ModeSettings MonoMode
         {
@@ -211,6 +222,11 @@ namespace Audiobook_Compressor.Models
     public static class Settings
     {
         /// <summary>
+        /// Current settings schema version - increment when breaking changes are made
+        /// </summary>
+        public const string CurrentSettingsVersion = "1.0.0";
+
+        /// <summary>
         /// Default bitrate for compressed audio (48kbps)
         /// </summary>
         public const int DefaultBitrate = 48000;
@@ -234,6 +250,22 @@ namespace Audiobook_Compressor.Models
         /// Default bitrate control mode
         /// </summary>
         public const string DefaultBitrateControl = "ABR";
+
+        /// <summary>
+        /// Valid SelectedAction property values for mode settings
+        /// </summary>
+        public static readonly ReadOnlyCollection<string> ValidActions = new(new[]
+        {
+            "Copy", "Convert", "Advanced"
+        });
+
+        /// <summary>
+        /// Valid SubThresholdAction property values for advanced settings
+        /// </summary>
+        public static readonly ReadOnlyCollection<string> ValidSubThresholdActions = new(new[]
+        {
+            "Copy", "DeferToRockit", "ConvertTo"
+        });
 
         /// <summary>
         /// Supported audio file extensions
@@ -394,6 +426,22 @@ namespace Audiobook_Compressor.Models
         public static string FormatSampleRate(int sampleRate)
         {
             return $"{sampleRate} Hz";
+        }
+
+        /// <summary>
+        /// Validates if a given SelectedAction value is valid
+        /// </summary>
+        public static bool IsValidAction(string? action)
+        {
+            return !string.IsNullOrWhiteSpace(action) && ValidActions.Contains(action);
+        }
+
+        /// <summary>
+        /// Validates if a given SubThresholdAction value is valid
+        /// </summary>
+        public static bool IsValidSubThresholdAction(string? action)
+        {
+            return !string.IsNullOrWhiteSpace(action) && ValidSubThresholdActions.Contains(action);
         }
     }
 }

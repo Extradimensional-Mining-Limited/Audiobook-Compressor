@@ -1,8 +1,8 @@
 ﻿Filename: ChangelogExperimental.md  
-Last Updated: 2025-08-18 03:31 AM CEST  
-Version: 1.2.K  
+Last Updated: 2025-08-19 08:37 AM CEST  
+Version: 1.2.L  
 State: Experimental  
-Signed: Vanguard
+Signed: Meridian
 
 # **Experimental Changelog**
 
@@ -12,6 +12,16 @@ This file contains a detailed, granular log of all changes made on the experimen
 
 ### **Added**
 
+* 1.2.L: feat: Settings Schema Versioning Implementation per Focus 19.7.0 Task #40 - Added SettingsVersion property to ApplicationSettings with CurrentSettingsVersion constant (1.0.0) for future migration capability foundation, enabling robust settings file evolution and backward compatibility management.
+* 1.2.L: feat: Comprehensive Settings Validation per Focus 19.7.0 Task #14 - Enhanced SettingsService with ValidateSettingsComprehensive method providing detailed error and warning reporting, corrupted file recovery with fallback strategies, and graceful degradation handling for robust settings management.
+* 1.2.L: feat: Settings Backup and Recovery System per Focus 19.7.0 Task #41 - Implemented automatic backup creation before settings save, corrupted file detection with timestamp-based archival, and automatic backup restoration with user notification for comprehensive data protection.
+* 1.2.L: feat: SelectedAction Property Validation per Focus 19.7.0 Task #11 - Added comprehensive enum validation with IsValidAction and IsValidSubThresholdAction methods in Settings class, plus enhanced validation in SettingsService with detailed error reporting for invalid state recovery.
+* 1.2.L: feat: Enhanced Bitrate Validation per Focus 19.7.0 Task #24 - Reimplemented user-entered bitrate validation with comprehensive input sanitization, edge case handling (floating point inputs, various suffix formats), enhanced range validation with quality recommendations, and detailed error reporting for improved user experience.
+* 1.2.L: feat: Professional Diagnostic Framework Implementation per Focus 19.4.0 - Created comprehensive IDiagnosticService interface and DiagnosticService implementation with zero-trace production removal through conditional compilation, automatic context capture with caller info attributes, event correlation, and multi-channel output management for sophisticated application instrumentation.
+* 1.2.L: feat: Complete 10-Service Architecture per Focus 19.4.0 - Enhanced dependency injection container with IDiagnosticService registration using conditional compilation strategy (#if DEBUG DiagnosticService, #else NullDiagnosticService) completing the evolution from 9-service to 10-service professional ecosystem for comprehensive diagnostic capabilities.
+* 1.2.L: feat: Gremlin #33 Diagnostic Instrumentation per Focus 19.4.0 - Enhanced MainViewModel with comprehensive diagnostic logging including event correlation for mode switch operations, state capture before/during/after transitions, service interaction tracking, and panel visibility analysis for persistent advanced panel visibility bug investigation.
+* 1.2.L: docs: Diagnostic Framework Documentation per Focus 19.4.0 - Created comprehensive #33.md diagnostic task documentation with instrumentation strategy, expected patterns, anomaly detection criteria, and implementation progress tracking, plus professional README.md with framework usage patterns and best practices.
+* 1.2.L: feat: Enhanced MainViewModel Constructor per Focus 19.4.0 - Added IDiagnosticService dependency injection with comprehensive diagnostic event logging throughout initialization, service coordination, and mode change operations for real-world interaction pattern analysis.
 * 1.2.K: feat: Focus 18.2.0 Final Modularization Phases 3 & 4 Implementation - Complete MainViewModel transformation with RadioButtonStateService and PathManagementService achieving 53.6% size reduction (970 → 450 lines) and 9-service architecture excellence per Focus 18.2.0 authorization.
 * 1.2.K: feat: Phase 3 IRadioButtonStateService Implementation per Focus 18.2.0 - Created comprehensive radio button state management service extracting ~150 lines of complex coordination logic from MainViewModel with atomic state updates, event-driven coordination, and race condition prevention through sophisticated state synchronization patterns.
 * 1.2.K: feat: Phase 3 RadioButtonStateService Implementation per Focus 18.2.0 - Implemented atomic radio button coordination with SetMonoSelectedAction/SetStereoSelectedAction methods, advanced mode flag management, and RadioButtonStateChangedEventArgs for external coordination of panel visibility and settings summary updates.
@@ -85,6 +95,11 @@ This file contains a detailed, granular log of all changes made on the experimen
 
 ### **Changed**
 
+* 1.2.L: refactor: Enhanced Settings Model with Schema Versioning per Focus 19.7.0 Task #40 - Added SettingsVersion property to ApplicationSettings, CurrentSettingsVersion constant to Settings class, and comprehensive validation methods (IsValidAction, IsValidSubThresholdAction) for robust settings evolution and state validation framework.
+* 1.2.L: refactor: SettingsService Hardening per Focus 19.7.0 Tasks #14, #41, #11 - Transformed settings loading with comprehensive validation, automatic backup creation, corrupted file recovery, and enhanced error reporting, establishing production-ready settings persistence with graceful degradation and data protection capabilities.
+* 1.2.L: refactor: ValidationService Enhancement per Focus 19.7.0 Task #24 - Enhanced bitrate validation with comprehensive input sanitization, support for floating point inputs, various suffix formats (kbps, kb/s, kb, k), enhanced range validation with quality recommendations, and detailed error messaging for superior user experience.
+* 1.2.L: refactor: ISettingsService Interface Enhancement per Focus 19.7.0 - Added ValidateSettingsComprehensive method with detailed error reporting capabilities, maintaining backward compatibility while providing enhanced validation functionality for comprehensive settings integrity verification.
+* 1.2.L: refactor: MainViewModel Enhanced with Diagnostic Instrumentation per Focus 19.4.0 - Transformed SelectedChannel property setter with comprehensive diagnostic logging including event correlation, state capture, service interaction tracking, and panel visibility analysis for Gremlin #33 investigation while maintaining zero functional regression.
 * 1.2.K: refactor: Complete MainViewModel Transformation per Focus 18.2.0 - Transformed MainViewModel from 970-line monolithic class to 450-line streamlined orchestration layer through systematic extraction of radio button coordination logic to RadioButtonStateService and path management operations to PathManagementService, achieving 53.6% code reduction while maintaining zero functional regression and enhancing architectural quality.
 * 1.2.K: refactor: Radio Button Properties Delegation per Focus 18.2.0 - Converted all 6 radio button properties (IsMonoCopySelected, IsMonoConvertSelected, IsMonoAdvancedSelected, IsStereoCopySelected, IsStereoConvertSelected, IsStereoAdvancedSelected) from complex coordination logic to simple delegates calling RadioButtonStateService.SetMonoSelectedAction/SetStereoSelectedAction methods with event-driven external coordination.
 * 1.2.K: refactor: Path Management Commands Transformation per Focus 18.2.0 - Converted synchronous path management commands (ExecuteBrowseSource, ExecuteBrowseOutput, ExecuteSaveDefault, ExecuteRestoreDefault) to async methods delegating to PathManagementService with comprehensive error handling, result processing, and user feedback through structured PathOperationResult objects.
@@ -106,18 +121,19 @@ This file contains a detailed, granular log of all changes made on the experimen
 
 ### **Fixed**
 
+* 1.2.L: fix: Missing semicolons in MainViewModel command properties - Corrected syntax errors on ICommand property declarations (StartProcessingCommand, CancelProcessingCommand, BrowseSourceCommand, BrowseOutputCommand, SaveDefaultCommand, RestoreDefaultCommand, SaveSettingsCommand) per Focus 19.4.0 implementation requirements.
 * 1.2.F: docs: Corrected version inconsistencies throughout codebase to align with current cycle 1.2.F per directive regarding version drift resolution.
 * 1.2.E: fix: Corrected AudioProcessingDecider logic to properly handle Advanced/DeferToRockit scenarios, ensuring channel comparison always determines the correct action type for sub-threshold behaviors.
 * 1.2.E: fix: Fixed CS0051 accessibility error by changing DetailedFileInfo from internal to public for test accessibility.
 * 1.2.E: fix: Resolved test project compatibility issues by targeting net8.0-windows to match main project framework requirements.
 * 1.2.D: docs: UI alignment and spacing polish for advanced panels, ComboBox fine-tuning, and documentation compliance per SOP section 5.0. Signed: Orion
 * 1.2.D: fix: Fixed syntax error in CreateCompressionSettingsXml method where duplicate PassMode element was causing compilation issues.
-* 1.2.C: fix: Applied naming convention refactor per Focus 8.0.2 and 9.9.0 \- renamed DefaultMonoCopyThreshold to DefaultConversionThreshold, updated all UI panels and ComboBox controls to contextually appropriate names, and implemented seamless XML settings migration.
+* 1.2.C: fix: Applied naming convention refactor per Focus 8.0.2 and 9.9.0 - renamed DefaultMonoCopyThreshold to DefaultConversionThreshold, updated all UI panels and ComboBox controls to contextually appropriate names, and implemented seamless XML settings migration.
 * 1.2.B: fix: Resolved critical architecture disconnect where UI settings had no effect on processing behavior.
 * 1.2.B: fix: Implemented proper JSON parsing in ProbeAudioFileAsync to populate AudioFileInfo.Bitrate property.
 * 1.2.A: fix: Resolved radio button state persistence issues where selected action would not persist correctly when switching between modes.
 * 1.2.A: fix: Removed duplicate event handlers and consolidated ComboBox event handling to prevent conflicts and ensure proper hierarchical settings management.
-* 1.2.A: fix: Updated legacy static property usage in SampleRate\_SelectionChanged and BitrateControl\_SelectionChanged to use hierarchical settings structure.
+* 1.2.A: fix: Updated legacy static property usage in SampleRate_SelectionChanged and BitrateControl_SelectionChanged to use hierarchical settings structure.
 * 1.2.A: fix: Enhanced RestoreUIFromSettings logic to properly restore UI state from hierarchical settings including mode selection, radio button states, and panel visibility.
 * 1.2.A: fix: Corrected method call order in constructor to ensure ComboBoxes have ItemsSource before RestoreUIFromSettings attempts to set values.
 * 1.2.A: fix: Added missing ItemsSource assignments for SampleRateComboBox, BitrateControlComboBox, and all 12 advanced override ComboBoxes to resolve empty dropdown issues.

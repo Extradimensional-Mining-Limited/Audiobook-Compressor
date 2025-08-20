@@ -1,3 +1,16 @@
+/*
+    Filename: MainViewModel.cs
+    Last Updated: 2025-08-19 20:23 CEST
+    Version: 1.2.L
+    State: Experimental
+    Signed: Meridian
+
+    Synopsis:
+    MainViewModel enhanced with professional diagnostic framework per Focus 19.4.0 authorization.
+    Added comprehensive instrumentation for Gremlin #33 investigation with event correlation,
+    state capture, and service interaction tracking capabilities.
+*/
+
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -9,13 +22,14 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Audiobook_Compressor.Models;
 using Audiobook_Compressor.Services;
+using Audiobook_Compressor.Services.Diagnostics;
 
 namespace Audiobook_Compressor.ViewModels
 {
     /// <summary>
     /// Main ViewModel for the application, implementing MVVM pattern
     /// Streamlined orchestration layer with service-oriented architecture
-    /// Final modularization: 9 services handling specialized concerns (~48-52% size reduction)
+    /// Enhanced with professional diagnostic framework for comprehensive instrumentation
     /// </summary>
     public class MainViewModel : INotifyPropertyChanged
     {
@@ -30,6 +44,7 @@ namespace Audiobook_Compressor.ViewModels
         private readonly ISettingsBindingService _settingsBindingService;
         private readonly IRadioButtonStateService _radioButtonStateService;
         private readonly IPathManagementService _pathManagementService;
+        private readonly IDiagnosticService _diagnosticService;
 
         private ApplicationSettings _settings;
         private CancellationTokenSource? _cancellationTokenSource;
@@ -48,7 +63,8 @@ namespace Audiobook_Compressor.ViewModels
             IPanelVisibilityService panelVisibilityService,
             ISettingsBindingService settingsBindingService,
             IRadioButtonStateService radioButtonStateService,
-            IPathManagementService pathManagementService)
+            IPathManagementService pathManagementService,
+            IDiagnosticService diagnosticService)
         {
             _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
             _audioService = audioService ?? throw new ArgumentNullException(nameof(audioService));
@@ -59,9 +75,20 @@ namespace Audiobook_Compressor.ViewModels
             _settingsBindingService = settingsBindingService ?? throw new ArgumentNullException(nameof(settingsBindingService));
             _radioButtonStateService = radioButtonStateService ?? throw new ArgumentNullException(nameof(radioButtonStateService));
             _pathManagementService = pathManagementService ?? throw new ArgumentNullException(nameof(pathManagementService));
+            _diagnosticService = diagnosticService ?? throw new ArgumentNullException(nameof(diagnosticService));
+
+            _diagnosticService.LogEvent("33", "MainViewModel constructor started", new { services = "10 services injected" });
 
             // Load settings first
             _settings = _settingsService.LoadSettings();
+
+            _diagnosticService.LogStateCapture("33", "Settings loaded", new {
+                CurrentMode = _settings.CurrentMode,
+                MonoAction = _settings.MonoMode.SelectedAction,
+                StereoAction = _settings.StereoMode.SelectedAction,
+                SourcePath = _settings.SourcePath,
+                OutputPath = _settings.OutputPath
+            });
 
             // Initialize all services with loaded settings
             InitializeServices();
@@ -75,6 +102,8 @@ namespace Audiobook_Compressor.ViewModels
 
             // Subscribe to all service events
             SubscribeToServiceEvents();
+
+            _diagnosticService.LogEvent("33", "MainViewModel constructor completed successfully");
         }
 
         #endregion
@@ -89,6 +118,8 @@ namespace Audiobook_Compressor.ViewModels
             get => _settings;
             set
             {
+                _diagnosticService.LogEvent("33", "Settings property setter called");
+                
                 _settings = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(CanStartProcessing));
@@ -96,6 +127,8 @@ namespace Audiobook_Compressor.ViewModels
                 
                 // Update all services with new settings
                 InitializeServices();
+
+                _diagnosticService.LogEvent("33", "Settings property updated successfully");
             }
         }
 
@@ -261,35 +294,85 @@ namespace Audiobook_Compressor.ViewModels
         #region Channel Mode Binding
 
         /// <summary>
-        /// Selected channel mode for binding with enhanced atomic updates for bug fix #33
+        /// Selected channel mode for binding with comprehensive Gremlin #33 diagnostic instrumentation
         /// </summary>
         public string SelectedChannel
         {
             get => Settings.CurrentMode;
             set
             {
+                _diagnosticService.LogEvent("33", $"SelectedChannel.set called: {Settings.CurrentMode} ? {value}");
+
                 if (Settings.CurrentMode != value)
                 {
+                    var correlationId = _diagnosticService.BeginCorrelation("33", "FullModeSwitch");
+
+                    _diagnosticService.LogStateCapture("33", "Pre-change state", new {
+                        CurrentMode = Settings.CurrentMode,
+                        MonoAction = Settings.MonoMode.SelectedAction,
+                        StereoAction = Settings.StereoMode.SelectedAction,
+                        PanelStates = CapturePanelVisibilityState()
+                    });
+
                     // Atomic update - ensure all context is updated together
                     Settings.CurrentMode = value;
-                    
+                    _diagnosticService.LogEvent("33", "Settings.CurrentMode updated atomically");
+
                     // Update settings binding service context
+                    _diagnosticService.LogInteraction("33", "Service coordination call", 
+                        "MainViewModel", "SettingsBindingService", new { method = "SetSettingsContext" });
                     _settingsBindingService.SetSettingsContext(Settings, Settings.CurrentMode);
-                    
+                    _diagnosticService.LogEvent("33", "SettingsBindingService context updated successfully");
+
                     // Update radio button service for mode change
+                    _diagnosticService.LogInteraction("33", "Service coordination call", 
+                        "MainViewModel", "RadioButtonStateService", new { method = "UpdateForModeChange", newMode = value });
                     _radioButtonStateService.UpdateForModeChange(value);
-                    
+                    _diagnosticService.LogEvent("33", "RadioButtonStateService mode updated successfully");
+
                     // Update panel visibility AFTER all context is set to prevent race conditions
+                    _diagnosticService.LogEvent("33", "Calling UpdatePanelVisibility");
                     UpdatePanelVisibility();
-                    
+                    _diagnosticService.LogEvent("33", "UpdatePanelVisibility completed");
+
                     // Then update UI bindings
+                    _diagnosticService.LogEvent("33", "Firing PropertyChanged events for UI binding");
                     OnPropertyChanged();
                     OnPropertyChanged(nameof(SettingsSummary));
-                    
+                    _diagnosticService.LogEvent("33", "PropertyChanged events fired successfully");
+
                     // Refresh settings binding service for new mode
+                    _diagnosticService.LogInteraction("33", "Service coordination call", 
+                        "MainViewModel", "SettingsBindingService", new { method = "RefreshBindings" });
                     _settingsBindingService.RefreshBindings();
+                    _diagnosticService.LogEvent("33", "SettingsBindingService refreshed successfully");
+
+                    _diagnosticService.LogStateCapture("33", "Post-change state", new {
+                        CurrentMode = Settings.CurrentMode,
+                        PanelStates = CapturePanelVisibilityState()
+                    });
+
+                    _diagnosticService.EndCorrelation(correlationId, "Mode switch completed successfully");
+                }
+                else
+                {
+                    _diagnosticService.LogEvent("33", "SelectedChannel.set: No change needed, same value");
                 }
             }
+        }
+
+        /// <summary>
+        /// Captures current panel visibility state for diagnostic purposes
+        /// </summary>
+        private object CapturePanelVisibilityState()
+        {
+            return new {
+                IsMonoModeVisible,
+                IsStereoModeVisible,
+                IsAdvancedPanelVisible,
+                IsMonoAdvancedPanelVisible,
+                IsStereoAdvancedPanelVisible
+            };
         }
 
         #endregion
@@ -350,7 +433,7 @@ namespace Audiobook_Compressor.ViewModels
 
         /// <summary>
         /// Selected pass mode for binding - Delegated to SettingsBindingService
-        /// </summary>
+        /// /// </summary>
         public string SelectedPassMode
         {
             get => _settingsBindingService.SelectedPassMode;
@@ -709,6 +792,8 @@ namespace Audiobook_Compressor.ViewModels
         /// </summary>
         private void InitializeServices()
         {
+            _diagnosticService.LogEvent("33", "InitializeServices called");
+
             // Initialize panel visibility with loaded settings
             _panelVisibilityService.Initialize(
                 Settings.CurrentMode,
@@ -720,6 +805,8 @@ namespace Audiobook_Compressor.ViewModels
 
             // Initialize radio button state service
             _radioButtonStateService.Initialize(Settings);
+
+            _diagnosticService.LogEvent("33", "InitializeServices completed - All services initialized");
         }
 
         /// <summary>
@@ -769,10 +856,10 @@ namespace Audiobook_Compressor.ViewModels
             var bitrateInfo = e.File.Bitrate.HasValue ? $" ({Models.Settings.FormatBitrate(e.File.Bitrate.Value)})" : "";
 
             var logMessage = $"Processed {fileName}: {status}{bitrateInfo}";
-            
+
             // Update log content using UIStateService
             _uiStateService.AppendLog(logMessage);
-            
+
             System.Diagnostics.Debug.WriteLine(logMessage);
         }
 
@@ -803,6 +890,9 @@ namespace Audiobook_Compressor.ViewModels
 
         private void OnPanelVisibilityServicePropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
+            _diagnosticService.LogInteraction("33", "Property change notification received", 
+                "PanelVisibilityService", "MainViewModel", new { propertyName = e.PropertyName });
+
             // Forward property changes from PanelVisibilityService to MainViewModel
             switch (e.PropertyName)
             {
@@ -899,6 +989,12 @@ namespace Audiobook_Compressor.ViewModels
         /// </summary>
         private void OnRadioButtonStateChanged(object? sender, RadioButtonStateChangedEventArgs e)
         {
+            _diagnosticService.LogInteraction("33", "Radio button state change event received", 
+                "RadioButtonStateService", "MainViewModel", new { 
+                    requiresPanelUpdate = e.RequiresPanelVisibilityUpdate,
+                    requiresSummaryUpdate = e.RequiresSettingsSummaryUpdate 
+                });
+
             if (e.RequiresPanelVisibilityUpdate)
             {
                 UpdatePanelVisibility();
@@ -961,35 +1057,6 @@ namespace Audiobook_Compressor.ViewModels
 
         #endregion
 
-        #region Private Methods
-
-        /// <summary>
-        /// Updates panel visibility service with current settings - enhanced with validation for bug fix #33
-        /// </summary>
-        private void UpdatePanelVisibility()
-        {
-            // Ensure we have valid settings context to prevent race conditions
-            if (Settings?.MonoMode?.SelectedAction == null || 
-                Settings?.StereoMode?.SelectedAction == null)
-            {
-                System.Diagnostics.Debug.WriteLine("UpdatePanelVisibility: Skipped - Settings not fully initialized");
-                return; // Skip update if settings not fully initialized
-            }
-            
-            // Debug logging to catch any remaining race conditions
-            System.Diagnostics.Debug.WriteLine(
-                $"UpdatePanelVisibility: Mode={Settings.CurrentMode}, " +
-                $"Mono={Settings.MonoMode.SelectedAction}, " + 
-                $"Stereo={Settings.StereoMode.SelectedAction}");
-            
-            _panelVisibilityService.UpdateVisibilityForMode(
-                Settings.CurrentMode,
-                Settings.MonoMode.SelectedAction,
-                Settings.StereoMode.SelectedAction);
-        }
-
-        #endregion
-
         #region INotifyPropertyChanged
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -1035,6 +1102,60 @@ namespace Audiobook_Compressor.ViewModels
                 Settings.StereoMode.AdvancedOverride.PropertyChanged -= OnAdvancedSettingsPropertyChanged;
             
             _cancellationTokenSource?.Dispose();
+        }
+
+        #endregion
+
+        #region PanelVisibility Management
+
+        /// <summary>
+        /// Updates panel visibility service with current settings - enhanced with comprehensive Gremlin #33 diagnostic instrumentation
+        /// </summary>
+        private void UpdatePanelVisibility()
+        {
+            _diagnosticService.LogEvent("33", "UpdatePanelVisibility called");
+
+            // Ensure we have valid settings context to prevent race conditions
+            if (Settings?.MonoMode?.SelectedAction == null || 
+                Settings?.StereoMode?.SelectedAction == null)
+            {
+                _diagnosticService.LogEvent("33", "UpdatePanelVisibility: Skipped - Settings not fully initialized", new {
+                    SettingsNull = Settings == null,
+                    MonoModeNull = Settings?.MonoMode == null,
+                    StereoModeNull = Settings?.StereoMode == null,
+                    MonoActionNull = Settings?.MonoMode?.SelectedAction == null,
+                    StereoActionNull = Settings?.StereoMode?.SelectedAction == null
+                });
+                return; // Skip update if settings not fully initialized
+            }
+
+            _diagnosticService.LogStateCapture("33", "UpdatePanelVisibility: Pre-call state", new {
+                Mode = Settings.CurrentMode,
+                MonoAction = Settings.MonoMode.SelectedAction,
+                StereoAction = Settings.StereoMode.SelectedAction,
+                CurrentPanelStates = CapturePanelVisibilityState()
+            });
+
+            _diagnosticService.LogInteraction("33", "Service coordination call", 
+                "MainViewModel", "PanelVisibilityService", new { 
+                    method = "UpdateVisibilityForMode",
+                    parameters = new {
+                        currentMode = Settings.CurrentMode,
+                        monoAction = Settings.MonoMode.SelectedAction,
+                        stereoAction = Settings.StereoMode.SelectedAction
+                    }
+                });
+
+            _panelVisibilityService.UpdateVisibilityForMode(
+                Settings.CurrentMode,
+                Settings.MonoMode.SelectedAction,
+                Settings.StereoMode.SelectedAction);
+
+            _diagnosticService.LogStateCapture("33", "UpdatePanelVisibility: Post-call state", new {
+                UpdatedPanelStates = CapturePanelVisibilityState()
+            });
+
+            _diagnosticService.LogEvent("33", "UpdatePanelVisibility completed successfully");
         }
 
         #endregion

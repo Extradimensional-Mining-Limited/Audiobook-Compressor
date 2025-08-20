@@ -1,12 +1,15 @@
 /*
     Filename: SettingsService.cs
-    Last Updated: 2025-08-09 10:10 CEST
-    Version: 1.2.F
+    Last Updated: 2025-08-19 22:45 CEST
+    Version: 1.2.L
     State: Experimental
-    Signed: Vanguard
+    Signed: Meridian
 
     Synopsis:
-    Concrete implementation of ISettingsService, migrating settings persistence logic from MainWindow.xaml.cs per Focus 13.1.0 Phase 2.
+    Enhanced SettingsService with comprehensive hardening per Focus 19.7.0.
+    Implemented schema versioning (#40), comprehensive validation on load (#14), 
+    backup/recovery system (#41), and SelectedAction validation (#11).
+    Added robust error handling and graceful degradation for corrupted settings files.
 */
 
 using System;
@@ -18,14 +21,16 @@ using Audiobook_Compressor.Models;
 namespace Audiobook_Compressor.Services
 {
     /// <summary>
-    /// Service for managing application settings persistence and validation
+    /// Enhanced service for managing application settings persistence with comprehensive validation and recovery
     /// </summary>
     public class SettingsService : ISettingsService
     {
         private const string SettingsFile = "user-settings.xml";
+        private const string BackupSettingsFile = "user-settings.backup.xml";
+        private const string CorruptedSettingsFile = "user-settings.corrupted.xml";
 
         /// <summary>
-        /// Loads settings from persistent storage
+        /// Loads settings from persistent storage with comprehensive validation and recovery
         /// </summary>
         public ApplicationSettings LoadSettings()
         {
@@ -33,35 +38,83 @@ namespace Audiobook_Compressor.Services
 
             try
             {
+                // Try to load primary settings file
                 if (File.Exists(SettingsFile))
                 {
-                    var doc = XDocument.Load(SettingsFile);
-                    var root = doc.Element("UserSettings");
-                    if (root != null)
+                    var loadResult = TryLoadSettingsFromFile(SettingsFile, settings);
+                    if (loadResult.Success)
                     {
-                        LoadApplicationSettings(root, settings);
+                        return settings;
                     }
+
+                    // Primary file is corrupted, try backup
+                    System.Diagnostics.Debug.WriteLine($"Primary settings file corrupted: {loadResult.Error}");
+                    if (File.Exists(BackupSettingsFile))
+                    {
+                        System.Diagnostics.Debug.WriteLine("Attempting to restore from backup...");
+                        var backupResult = TryLoadSettingsFromFile(BackupSettingsFile, new ApplicationSettings());
+                        if (backupResult.Success)
+                        {
+                            // Move corrupted file for analysis
+                            MoveCorruptedFile(SettingsFile);
+                            
+                            // Restore backup as primary
+                            File.Copy(BackupSettingsFile, SettingsFile, true);
+                            
+                            System.Diagnostics.Debug.WriteLine("Successfully restored settings from backup");
+                            return backupResult.Settings ?? new ApplicationSettings();
+                        }
+                    }
+
+                    // Both primary and backup failed, move corrupted file and use defaults
+                    MoveCorruptedFile(SettingsFile);
+                    System.Diagnostics.Debug.WriteLine("Both primary and backup settings corrupted, using defaults");
                 }
             }
             catch (Exception ex)
             {
-                // Log the error but continue with default settings
-                System.Diagnostics.Debug.WriteLine($"Error loading settings: {ex.Message}");
-                // In a real application, you might want to show a user notification here
+                System.Diagnostics.Debug.WriteLine($"Critical error loading settings: {ex.Message}");
+                // Continue with default settings
             }
 
             return settings;
         }
 
         /// <summary>
-        /// Saves settings to persistent storage
+        /// Saves settings to persistent storage with backup creation
         /// </summary>
         public void SaveSettings(ApplicationSettings settings)
         {
+            if (settings == null)
+                throw new ArgumentNullException(nameof(settings));
+
             try
             {
+                // Validate settings before saving
+                var validationResult = ValidateSettingsComprehensive(settings);
+                if (!validationResult.IsValid)
+                {
+                    throw new InvalidOperationException($"Cannot save invalid settings: {string.Join(", ", validationResult.Errors)}");
+                }
+
+                // Create backup of existing settings if they exist
+                if (File.Exists(SettingsFile))
+                {
+                    try
+                    {
+                        File.Copy(SettingsFile, BackupSettingsFile, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Warning: Could not create backup: {ex.Message}");
+                        // Continue with save even if backup fails
+                    }
+                }
+
+                // Create the settings XML document
                 var doc = new XDocument(
                     new XElement("UserSettings",
+                        new XElement("SettingsVersion", settings.SettingsVersion),
                         new XElement("SourcePath", settings.SourcePath ?? string.Empty),
                         new XElement("OutputPath", settings.OutputPath ?? string.Empty),
                         new XElement("DefaultOutputPath", settings.DefaultOutputPath ?? string.Empty),
@@ -90,29 +143,70 @@ namespace Audiobook_Compressor.Services
         }
 
         /// <summary>
-        /// Validates settings and returns any issues found
+        /// Validates settings and returns any issues found (legacy method for compatibility)
         /// </summary>
         public bool ValidateSettings(ApplicationSettings settings)
         {
+            return ValidateSettingsComprehensive(settings).IsValid;
+        }
+
+        /// <summary>
+        /// Comprehensive settings validation with detailed error reporting
+        /// </summary>
+        public SettingsValidationResult ValidateSettingsComprehensive(ApplicationSettings settings)
+        {
+            var result = new SettingsValidationResult();
+
             if (settings == null)
-                return false;
+            {
+                result.Errors.Add("Settings object is null");
+                return result;
+            }
 
-            // Basic validation - can be expanded as needed
-            if (settings.MonoMode == null || settings.StereoMode == null)
-                return false;
+            // Validate schema version
+            if (string.IsNullOrWhiteSpace(settings.SettingsVersion))
+            {
+                result.Warnings.Add("Settings version is missing, using current version");
+                settings.SettingsVersion = Models.Settings.CurrentSettingsVersion;
+            }
 
-            // Validate that selected actions are valid
-            var validActions = new[] { "Copy", "Convert", "Advanced" };
-            if (!validActions.Contains(settings.MonoMode.SelectedAction) ||
-                !validActions.Contains(settings.StereoMode.SelectedAction))
-                return false;
+            // Validate mode settings
+            if (settings.MonoMode == null)
+            {
+                result.Errors.Add("MonoMode settings are missing");
+            }
+            else
+            {
+                ValidateModeSettings("MonoMode", settings.MonoMode, result);
+            }
 
-            // Validate bitrate values
-            if (!Settings.TryParseBitrate(settings.MonoMode.Main.TargetBitrate, out _) ||
-                !Settings.TryParseBitrate(settings.StereoMode.Main.TargetBitrate, out _))
-                return false;
+            if (settings.StereoMode == null)
+            {
+                result.Errors.Add("StereoMode settings are missing");
+            }
+            else
+            {
+                ValidateModeSettings("StereoMode", settings.StereoMode, result);
+            }
 
-            return true;
+            // Validate current mode
+            if (!Models.Settings.ChannelOptions.Contains(settings.CurrentMode))
+            {
+                result.Errors.Add($"Invalid CurrentMode: '{settings.CurrentMode}'. Must be 'Mono' or 'Stereo'");
+            }
+
+            // Validate paths (warning level since they can be empty)
+            if (!string.IsNullOrWhiteSpace(settings.SourcePath) && !IsValidPath(settings.SourcePath))
+            {
+                result.Warnings.Add($"SourcePath appears invalid: '{settings.SourcePath}'");
+            }
+
+            if (!string.IsNullOrWhiteSpace(settings.OutputPath) && !IsValidPath(settings.OutputPath))
+            {
+                result.Warnings.Add($"OutputPath appears invalid: '{settings.OutputPath}'");
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -156,8 +250,146 @@ namespace Audiobook_Compressor.Services
 
         #region Private Methods
 
+        private SettingsLoadResult TryLoadSettingsFromFile(string filePath, ApplicationSettings settings)
+        {
+            try
+            {
+                var doc = XDocument.Load(filePath);
+                var root = doc.Element("UserSettings");
+                if (root == null)
+                {
+                    return new SettingsLoadResult { Success = false, Error = "Invalid XML structure: missing UserSettings root element" };
+                }
+
+                LoadApplicationSettings(root, settings);
+                
+                // Validate loaded settings
+                var validationResult = ValidateSettingsComprehensive(settings);
+                if (!validationResult.IsValid)
+                {
+                    return new SettingsLoadResult 
+                    { 
+                        Success = false, 
+                        Error = $"Settings validation failed: {string.Join(", ", validationResult.Errors)}" 
+                    };
+                }
+
+                return new SettingsLoadResult { Success = true, Settings = settings };
+            }
+            catch (Exception ex)
+            {
+                return new SettingsLoadResult { Success = false, Error = ex.Message };
+            }
+        }
+
+        private void MoveCorruptedFile(string filePath)
+        {
+            try
+            {
+                if (File.Exists(filePath))
+                {
+                    var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                    var corruptedFileName = $"user-settings.corrupted.{timestamp}.xml";
+                    File.Move(filePath, corruptedFileName);
+                    System.Diagnostics.Debug.WriteLine($"Moved corrupted settings file to: {corruptedFileName}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Could not move corrupted file: {ex.Message}");
+            }
+        }
+
+        private void ValidateModeSettings(string modeName, ModeSettings modeSettings, SettingsValidationResult result)
+        {
+            // Validate SelectedAction
+            if (!Models.Settings.IsValidAction(modeSettings.SelectedAction))
+            {
+                result.Errors.Add($"{modeName} has invalid SelectedAction: '{modeSettings.SelectedAction}'. Valid values: {string.Join(", ", Models.Settings.ValidActions)}");
+            }
+
+            // Validate main compression settings
+            ValidateCompressionSettings($"{modeName}.Main", modeSettings.Main, result);
+            
+            // Validate advanced compression settings
+            ValidateCompressionSettings($"{modeName}.Advanced", modeSettings.AdvancedOverride, result);
+        }
+
+        private void ValidateCompressionSettings(string prefix, CompressionSettings settings, SettingsValidationResult result)
+        {
+            // Validate channel mode
+            if (!Models.Settings.ChannelOptions.Contains(settings.ChannelMode))
+            {
+                result.Errors.Add($"{prefix}: Invalid ChannelMode '{settings.ChannelMode}'");
+            }
+
+            // Validate target bitrate
+            if (!Models.Settings.TryParseBitrate(settings.TargetBitrate, out _))
+            {
+                result.Errors.Add($"{prefix}: Invalid TargetBitrate '{settings.TargetBitrate}'");
+            }
+
+            // Validate sample rate
+            if (!Models.Settings.TryParseSampleRate(settings.SampleRate, out _))
+            {
+                result.Errors.Add($"{prefix}: Invalid SampleRate '{settings.SampleRate}'");
+            }
+
+            // Validate conversion threshold
+            if (!Models.Settings.TryParseBitrate(settings.ConversionThreshold, out _))
+            {
+                result.Errors.Add($"{prefix}: Invalid ConversionThreshold '{settings.ConversionThreshold}'");
+            }
+
+            // Validate encoding type
+            if (!new[] { "ABR", "CBR" }.Contains(settings.EncodingType))
+            {
+                result.Errors.Add($"{prefix}: Invalid EncodingType '{settings.EncodingType}'");
+            }
+
+            // Validate pass mode
+            if (!new[] { "1-Pass", "2-Pass" }.Contains(settings.PassMode))
+            {
+                result.Errors.Add($"{prefix}: Invalid PassMode '{settings.PassMode}'");
+            }
+
+            // Validate sub-threshold action
+            if (!Models.Settings.IsValidSubThresholdAction(settings.SubThresholdAction))
+            {
+                result.Errors.Add($"{prefix}: Invalid SubThresholdAction '{settings.SubThresholdAction}'. Valid values: {string.Join(", ", Models.Settings.ValidSubThresholdActions)}");
+            }
+
+            // Validate custom target bitrate (if used)
+            if (settings.SubThresholdAction == "ConvertTo" && !Models.Settings.TryParseBitrate(settings.CustomTargetBitrate, out _))
+            {
+                result.Errors.Add($"{prefix}: Invalid CustomTargetBitrate '{settings.CustomTargetBitrate}' for ConvertTo sub-threshold action");
+            }
+        }
+
+        private bool IsValidPath(string path)
+        {
+            try
+            {
+                // Basic path validation
+                var invalidChars = Path.GetInvalidPathChars();
+                return !string.IsNullOrWhiteSpace(path) && 
+                       !path.Any(c => invalidChars.Contains(c));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private void LoadApplicationSettings(XElement root, ApplicationSettings settings)
         {
+            // Load schema version
+            var settingsVersion = root.Element("SettingsVersion")?.Value;
+            if (!string.IsNullOrWhiteSpace(settingsVersion))
+            {
+                settings.SettingsVersion = settingsVersion;
+            }
+
             // Load path settings
             settings.SourcePath = root.Element("SourcePath")?.Value ?? string.Empty;
             settings.OutputPath = root.Element("OutputPath")?.Value ?? string.Empty;
@@ -259,5 +491,26 @@ namespace Audiobook_Compressor.Services
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// Result of settings loading operation
+    /// </summary>
+    public class SettingsLoadResult
+    {
+        public bool Success { get; set; }
+        public string Error { get; set; } = string.Empty;
+        public ApplicationSettings? Settings { get; set; }
+    }
+
+    /// <summary>
+    /// Result of comprehensive settings validation
+    /// </summary>
+    public class SettingsValidationResult
+    {
+        public List<string> Errors { get; set; } = new();
+        public List<string> Warnings { get; set; } = new();
+        public bool IsValid => Errors.Count == 0;
+        public bool HasWarnings => Warnings.Count > 0;
     }
 }
