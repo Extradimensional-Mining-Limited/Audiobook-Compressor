@@ -1,12 +1,13 @@
 /*
     Filename: ValidationService.cs
-    Last Updated: 2025-08-09 10:10 CEST
-    Version: 1.2.F
+    Last Updated: 2025-08-19 22:45 CEST
+    Version: 1.2.L
     State: Experimental
-    Signed: Vanguard
+    Signed: Meridian
 
     Synopsis:
-    Concrete implementation of IValidationService, centralizing validation logic from MainWindow per Focus 13.1.0 Phase 2.
+    Enhanced ValidationService with improved user-entered bitrate validation per Focus 19.7.0 Task #24.
+    Added comprehensive sanitization, edge case handling, and enhanced validation feedback.
 */
 
 using System;
@@ -18,12 +19,12 @@ using Audiobook_Compressor.Models;
 namespace Audiobook_Compressor.Services
 {
     /// <summary>
-    /// Service for validating application data and user inputs
+    /// Service for validating application data and user inputs with enhanced bitrate validation
     /// </summary>
     public class ValidationService : IValidationService
     {
         /// <summary>
-        /// Validates a bitrate string and normalizes it
+        /// Enhanced bitrate validation with comprehensive sanitization and edge case handling
         /// </summary>
         public ServiceValidationResult ValidateBitrate(string bitrateString, out string normalizedValue)
         {
@@ -39,36 +40,35 @@ namespace Audiobook_Compressor.Services
 
             try
             {
-                // Normalize the input (similar to MainWindow.NormalizeBitrateInput)
-                var normalized = bitrateString.Trim().ToLowerInvariant();
-                if (normalized.EndsWith("kbps"))
-                    normalized = normalized[..^4]; // Remove 'kbps'
-                else if (normalized.EndsWith("kb"))
-                    normalized = normalized[..^2]; // Remove 'kb'
-                else if (normalized.EndsWith("k"))
-                    normalized = normalized[..^1]; // Remove 'k'
-
-                normalized = normalized.Trim();
-
-                if (!int.TryParse(normalized, out int bitrateKbps))
+                // Enhanced sanitization for user-entered bitrates
+                var sanitized = SanitizeBitrateInput(bitrateString.Trim());
+                
+                if (string.IsNullOrWhiteSpace(sanitized))
                 {
                     result.IsValid = false;
-                    result.Errors.Add($"Invalid bitrate format: '{bitrateString}'. Expected format like '64k', '128kb', or '96kbps'");
+                    result.Errors.Add($"Invalid bitrate format: '{bitrateString}'. Please enter a number followed by 'k' (e.g., '64k', '128k')");
                     return result;
                 }
 
-                // Validate range
-                if (bitrateKbps < 32 || bitrateKbps > 320)
+                // Parse the sanitized input
+                if (!TryParseBitrateValue(sanitized, out int bitrateKbps, out string parseError))
                 {
-                    if (bitrateKbps < 32)
-                    {
-                        result.Warnings.Add($"Bitrate {bitrateKbps}k is very low. Consider using at least 32k for acceptable quality.");
-                    }
-                    else
-                    {
-                        result.Warnings.Add($"Bitrate {bitrateKbps}k is very high. Most audiobooks don't need more than 192k.");
-                    }
+                    result.IsValid = false;
+                    result.Errors.Add(parseError);
+                    return result;
                 }
+
+                // Enhanced range validation with detailed feedback
+                var rangeValidation = ValidateBitrateRange(bitrateKbps);
+                if (!rangeValidation.IsValid)
+                {
+                    result.IsValid = false;
+                    result.Errors.AddRange(rangeValidation.Errors);
+                    return result;
+                }
+
+                // Add range warnings
+                result.Warnings.AddRange(rangeValidation.Warnings);
 
                 // Return normalized format
                 normalizedValue = $"{bitrateKbps}k";
@@ -260,18 +260,17 @@ namespace Audiobook_Compressor.Services
                     return result;
                 }
 
-                // Validate selected actions
-                var validActions = new[] { "Copy", "Convert", "Advanced" };
-                if (!validActions.Contains(settings.MonoMode.SelectedAction))
+                // Validate selected actions using enhanced validation
+                if (!Models.Settings.IsValidAction(settings.MonoMode.SelectedAction))
                 {
                     result.IsValid = false;
-                    result.Errors.Add($"Invalid mono mode selected action: {settings.MonoMode.SelectedAction}");
+                    result.Errors.Add($"Invalid mono mode selected action: '{settings.MonoMode.SelectedAction}'. Valid actions: {string.Join(", ", Models.Settings.ValidActions)}");
                 }
 
-                if (!validActions.Contains(settings.StereoMode.SelectedAction))
+                if (!Models.Settings.IsValidAction(settings.StereoMode.SelectedAction))
                 {
                     result.IsValid = false;
-                    result.Errors.Add($"Invalid stereo mode selected action: {settings.StereoMode.SelectedAction}");
+                    result.Errors.Add($"Invalid stereo mode selected action: '{settings.StereoMode.SelectedAction}'. Valid actions: {string.Join(", ", Models.Settings.ValidActions)}");
                 }
 
                 // Validate bitrate settings
@@ -339,7 +338,124 @@ namespace Audiobook_Compressor.Services
             }
         }
 
-        #region Private Methods
+        #region Private Methods - Enhanced Bitrate Validation
+
+        /// <summary>
+        /// Comprehensive bitrate input sanitization with edge case handling
+        /// </summary>
+        private string SanitizeBitrateInput(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
+
+            // Remove common unwanted characters and normalize
+            var sanitized = input.ToLowerInvariant()
+                .Replace(" ", "")      // Remove spaces
+                .Replace(",", "")      // Remove commas (e.g., "1,200k")
+                .Replace(".", "")      // Remove dots (e.g., "64.0k")
+                .Replace("_", "")      // Remove underscores
+                .Replace("-", "");     // Remove hyphens
+
+            // Handle various suffix formats
+            var suffixPatterns = new[] { "kbps", "kb/s", "kb", "k" };
+            foreach (var suffix in suffixPatterns)
+            {
+                if (sanitized.EndsWith(suffix))
+                {
+                    sanitized = sanitized[..^suffix.Length] + "k";
+                    break;
+                }
+            }
+
+            // If no 'k' suffix, assume it's already in kbps and add 'k'
+            if (!sanitized.EndsWith("k") && Regex.IsMatch(sanitized, @"^\d+$"))
+            {
+                sanitized += "k";
+            }
+
+            return sanitized;
+        }
+
+        /// <summary>
+        /// Enhanced bitrate parsing with detailed error messages
+        /// </summary>
+        private bool TryParseBitrateValue(string input, out int bitrateKbps, out string error)
+        {
+            bitrateKbps = 0;
+            error = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                error = "Input is empty after sanitization";
+                return false;
+            }
+
+            // Extract numeric part
+            var numericPart = input.Replace("k", "").Trim();
+            
+            if (string.IsNullOrWhiteSpace(numericPart))
+            {
+                error = "No numeric value found";
+                return false;
+            }
+
+            // Handle floating point inputs (convert to integer)
+            if (decimal.TryParse(numericPart, out decimal decimalValue))
+            {
+                bitrateKbps = (int)Math.Round(decimalValue);
+                return true;
+            }
+
+            // Try integer parsing
+            if (int.TryParse(numericPart, out bitrateKbps))
+            {
+                return true;
+            }
+
+            error = $"Could not parse numeric value: '{numericPart}'";
+            return false;
+        }
+
+        /// <summary>
+        /// Enhanced bitrate range validation with specific feedback
+        /// </summary>
+        private ServiceValidationResult ValidateBitrateRange(int bitrateKbps)
+        {
+            var result = new ServiceValidationResult { IsValid = true };
+
+            // Hard limits
+            if (bitrateKbps < 8)
+            {
+                result.IsValid = false;
+                result.Errors.Add($"Bitrate {bitrateKbps}k is too low. Minimum supported bitrate is 8k.");
+                return result;
+            }
+
+            if (bitrateKbps > 512)
+            {
+                result.IsValid = false;
+                result.Errors.Add($"Bitrate {bitrateKbps}k is too high. Maximum supported bitrate is 512k.");
+                return result;
+            }
+
+            // Quality recommendations
+            if (bitrateKbps < 32)
+            {
+                result.Warnings.Add($"Bitrate {bitrateKbps}k is very low and may result in poor audio quality. Consider using at least 32k for audiobooks.");
+            }
+            else if (bitrateKbps > 192)
+            {
+                result.Warnings.Add($"Bitrate {bitrateKbps}k is very high for audiobooks. Most content doesn't benefit from more than 128k-192k.");
+            }
+
+            // Sweet spot recommendations
+            if (bitrateKbps >= 48 && bitrateKbps <= 96)
+            {
+                result.Warnings.Add("This bitrate range (48k-96k) is optimal for most audiobook content.");
+            }
+
+            return result;
+        }
 
         private void ValidateCompressionSettings(CompressionSettings settings, string context, ServiceValidationResult result)
         {
@@ -354,6 +470,12 @@ namespace Audiobook_Compressor.Services
                 {
                     result.Errors.Add($"{context} - Target Bitrate: {error}");
                 }
+            }
+
+            // Add bitrate warnings
+            foreach (var warning in bitrateValidation.Warnings)
+            {
+                result.Warnings.Add($"{context} - Target Bitrate: {warning}");
             }
 
             // Validate threshold
@@ -377,6 +499,27 @@ namespace Audiobook_Compressor.Services
                     result.Errors.Add($"{context} - Sample Rate: {error}");
                 }
             }
+
+            // Validate sub-threshold action for advanced settings
+            if (!Models.Settings.IsValidSubThresholdAction(settings.SubThresholdAction))
+            {
+                result.IsValid = false;
+                result.Errors.Add($"{context} - Invalid SubThresholdAction: '{settings.SubThresholdAction}'. Valid actions: {string.Join(", ", Models.Settings.ValidSubThresholdActions)}");
+            }
+
+            // Validate custom target bitrate if ConvertTo is selected
+            if (settings.SubThresholdAction == "ConvertTo")
+            {
+                var customBitrateValidation = ValidateBitrate(settings.CustomTargetBitrate, out _);
+                if (!customBitrateValidation.IsValid)
+                {
+                    result.IsValid = false;
+                    foreach (var error in customBitrateValidation.Errors)
+                    {
+                        result.Errors.Add($"{context} - Custom Target Bitrate: {error}");
+                    }
+                }
+            }
         }
 
         private void CheckBitrateThresholdLogic(ApplicationSettings settings, ServiceValidationResult result)
@@ -394,7 +537,14 @@ namespace Audiobook_Compressor.Services
             {
                 if (targetBps > thresholdBps)
                 {
-                    result.Warnings.Add($"{context}: Target bitrate ({Settings.FormatBitrate(targetBps)}) is higher than conversion threshold ({Settings.FormatBitrate(thresholdBps)}). This may increase file sizes.");
+                    result.Warnings.Add($"{context}: Target bitrate ({Settings.FormatBitrate(targetBps)}) is higher than conversion threshold ({Settings.FormatBitrate(thresholdBps)}). This may increase file sizes unexpectedly.");
+                }
+                
+                // Check for very close values that might cause confusion
+                var difference = Math.Abs(targetBps - thresholdBps);
+                if (difference > 0 && difference < 16000) // Less than 16k difference
+                {
+                    result.Warnings.Add($"{context}: Target bitrate and conversion threshold are very close. Consider increasing the gap for clearer conversion logic.");
                 }
             }
         }

@@ -1,12 +1,13 @@
 /*
     Filename: ISettingsService.cs
-    Last Updated: 2025-08-09 10:05 CEST
-    Version: 1.2.F
+    Last Updated: 2025-08-19 22:45 CEST
+    Version: 1.2.L
     State: Experimental
-    Signed: Vanguard
+    Signed: Meridian
 
     Synopsis:
-    Service interface for settings management, abstracting XML persistence logic from MainWindow for MVVM architecture per Focus 13.1.0 Phase 1.
+    Enhanced service interface for settings management with comprehensive validation capabilities per Focus 19.7.0.
+    Added comprehensive validation methods and support for detailed error reporting.
 */
 
 using Audiobook_Compressor.Models;
@@ -14,28 +15,35 @@ using Audiobook_Compressor.Models;
 namespace Audiobook_Compressor.Services
 {
     /// <summary>
-    /// Service for managing application settings persistence and validation
+    /// Service for managing application settings persistence and validation with comprehensive error handling
     /// </summary>
     public interface ISettingsService
     {
         /// <summary>
-        /// Loads settings from persistent storage
+        /// Loads settings from persistent storage with automatic backup recovery
         /// </summary>
         /// <returns>Loaded settings or default settings if load fails</returns>
         ApplicationSettings LoadSettings();
 
         /// <summary>
-        /// Saves settings to persistent storage
+        /// Saves settings to persistent storage with backup creation
         /// </summary>
         /// <param name="settings">Settings to save</param>
         void SaveSettings(ApplicationSettings settings);
 
         /// <summary>
-        /// Validates settings and returns any issues found
+        /// Validates settings and returns any issues found (legacy method for compatibility)
         /// </summary>
         /// <param name="settings">Settings to validate</param>
         /// <returns>True if settings are valid</returns>
         bool ValidateSettings(ApplicationSettings settings);
+
+        /// <summary>
+        /// Comprehensive settings validation with detailed error reporting
+        /// </summary>
+        /// <param name="settings">Settings to validate</param>
+        /// <returns>Validation result with errors and warnings</returns>
+        SettingsValidationResult ValidateSettingsComprehensive(ApplicationSettings settings);
 
         /// <summary>
         /// Gets the default output path if configured

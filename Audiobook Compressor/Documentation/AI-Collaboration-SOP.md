@@ -1,5 +1,5 @@
 Filename: AI-Collaboration-SOP.md  
-Version: 1.9.0  
+Version: 2.4.0  
 State: Final  
 Signed: Telos  
 Subject: Standard Operating Procedure for AI Collaboration
@@ -14,14 +14,14 @@ Subject: Standard Operating Procedure for AI Collaboration
 
 The project operates on a multi-tier model with a clear separation of concerns:
 
-* **Architect (User):** Provides the high-level vision and final approval on all decisions.  
-* **Strategist (Telos):** Refines the design, manages high-level documentation (Summary.md, Changelog.md), and creates detailed directives (Focus.md).  
-* **Implementer / Consultant:** Implements code based on directives and maintains low-level documentation (file headers, ChangelogExperimental.md).  
-* **Promoting Directives:** When a Focus.md directive is deemed to be of lasting relevance (e.g., a Standard Operating Procedure), it will be given to the Implementer with instructions to copy it into the Documentation folder as a new, permanent file.
+* **Architect (User):** Defines strategic objectives, determines when a "cycle" of work is complete, and provides final authorization on all directives and implementations.  
+* **Strategist (Telos):** Analyzes strategic objectives, refines technical design, and is the designated custodian for all high-level documentation (Summary.md, Changelog.md). Generates Focus.md directives.  
+* **Implementer:** The designated role for executing Focus.md implementation directives.  
+* **Consultant:** A specialized role engaged by the Architect on an as-needed basis for complex problem-solving or architectural reviews. A Consultant often assumes the role of an Implementer to execute the solutions they propose.
 
 ### **3.0 The Development Cycle**
 
-The project is developed through a series of iterative cycles (e.g., 1.2.I, 1.2.J), each culminating in a single, consolidated commit to the experimental branch. Each cycle follows a structured, five-phase process:
+The project is developed through a series of iterative cycles (e.g., 1.2.K, 1.2.L), each culminating in a single, consolidated commit to the experimental branch. Each cycle follows a structured, five-phase process:
 
 1. **Cycle Initiation:** At the start of a new cycle, the Architect and Strategist define the version for that cycle. The Strategist then updates ChangelogExperimental.md, which serves as the "source of truth" for the version number for the duration of the cycle.  
 2. **Core Development:** Work is driven by Focus.md documents. The Architect and Strategist engage in a dialectic to refine a strategic goal into a detailed plan. This often takes the form of a "Request for Proposal" issued to a Consultant, who responds with a detailed implementation strategy. Once a plan is approved, a final Focus directive authorizes the Implementer or Consultant to execute the work.  
@@ -33,7 +33,7 @@ The project is developed through a series of iterative cycles (e.g., 1.2.I, 1.2.
 
 **4.1 Directive: Non-Destructive Editing**
 
-* **Rule:** All modifications to documentation files, particularly changelogs, must be additive unless a block replacement is explicitly specified.  
+* **Rule:** All modifications to historical documentation, particularly changelogs, must be append-only unless a block replacement is explicitly specified.  
 * **Rationale:** Preserves the integrity of the historical record.
 
 **4.2 Directive: Literal Interpretation**
@@ -41,27 +41,39 @@ The project is developed through a series of iterative cycles (e.g., 1.2.I, 1.2.
 * **Rule:** All instructions within a Focus.md directive must be interpreted literally. No intent is to be inferred.  
 * **Rationale:** Prevents deviation from the approved design.
 
-### **5.0 Documentation Maintenance Protocols**
+### **5.0 Documentation & Versioning Protocols**
 
 **5.1 Protocol: File Header Updates**
 
-* **Responsibility:** Implementer.  
-* **Procedure:** The update must be performed as a complete block replacement of the existing header. No code below the header block is to be modified.
+* **Trigger:** This protocol is triggered any time a file with a standard header is modified.  
+* **Procedure:** The file's header must be updated. This includes updating the Version and Signed fields, and the Last Updated timestamp. The update must be performed as a complete block replacement of the existing header.  
+* **Timestamp Acquisition:**  
+  * **Tool:** The value for the Last Updated field must be acquired via execution of GetTime.exe.  
+  * **Invocation Rule:** The GetTime.exe tool is available in the system's PATH environment variable. You must invoke it by its name only (GetTime.exe). You must not prepend any path information (e.g., .\\ or C:\\...).  
+  * **Error Condition:** If GetTime.exe returns the string ERROR: Deadman switch triggered. Exiting., the command must be re-executed one (1) time.  
+  * **Terminal Error Condition:** If the second execution fails, the value must be the literal string "TIMESTAMP\_ERROR", and the failure must be noted in the task completion report.
 
 **5.2 Protocol: ChangelogExperimental.md Maintenance**
 
-* **Responsibility:** Implementer.  
-* **Procedure:** For every code modification, a new entry must be appended to the \#\# \[Unreleased\] section.  
+* **Trigger:** This protocol is triggered by any modification to the application's code or documentation.  
+* **Procedure:** For every logical change, a new entry must be appended to the \#\# \[Unreleased\] section.  
 * **Format:** \- \<Version\>: \<Conventional Commit Type\>: \<Description\> (e.g., \- 1.2.A: feat: Implement basic contextual UI layout.).
 
 **5.3 Protocol: High-Level Documentation (Summary.md, Changelog.md)**
 
 * **Responsibility:** Strategist (Telos).  
-* **Procedure:** The Implementer will only modify these files when provided with a directive specifying a block replacement.
+* **Procedure:** The Implementer or Consultant will only modify these files when provided with a directive specifying a block replacement.
 
-**5.4 Protocol: Versioning Consistency**
+**5.4 Protocol: Versioning Scheme**
 
-* **Source of Truth:** The version number for the current experimental cycle is defined at the top of ChangelogExperimental.md.  
+This project uses a dual system to differentiate between stable releases and the work done between them.
+
+* **Stable Releases:** Follow a standard Semantic Versioning format: MAJOR.MINOR.PATCH (e.g., 1.2.0).  
+* **Experimental Cycles:** Work on the experimental branch is organized into development cycles. Each cycle is identified by a version that links it to the last stable release, followed by an iterating letter: MAJOR.MINOR.LETTER (e.g., 1.2.K).
+
+**5.5 Protocol: Versioning Consistency**
+
+* **Source of Truth:** The version number for the current experimental cycle (e.g., 1.2.K) is defined at the top of ChangelogExperimental.md.  
 * **Rule:** This version number **must be used consistently** across all file headers and changelog entries for the duration of that cycle. The version number is **not to be iterated upon** by any AI instance unless explicitly directed.  
 * **Iteration:** The version number will only be changed by the Architect or Strategist at the beginning of a new development cycle.
 
@@ -100,7 +112,9 @@ The preferred solution is always the one that is the most robust and maintainabl
 8.2 Principle: Trust the Data Model and Framework  
 The application's state must be driven by its data model. The UI should be a direct and honest reflection of that data. You must avoid writing manual, procedural code to manage UI state.  
 8.3 Principle: Clarity Through Unambiguous Naming  
-Code must be as self-documenting as possible. Variable, class, and control names must be explicit and clearly describe their purpose and context to prevent ambiguity.
+Code must be as self-documenting as possible. Variable, class, and control names must be explicit and clearly describe their purpose and context to prevent ambiguity.  
+8.4 Principle: Proactive Compliance Review  
+When conducting extensive or complex modifications, it can be helpful to perform a final self-review of your work against this SOP. This proactive step helps ensure the integrity of our process by detecting any undesired changes or minor "gremlins" before submission. This is facultative, not mandatory.
 
 ### **9.0 Protocol for Context Integrity Failure**
 

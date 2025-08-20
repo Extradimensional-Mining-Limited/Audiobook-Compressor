@@ -1,16 +1,14 @@
 ﻿/*
     Filename: App.xaml.cs
-    Last Updated: 2025-08-09 20:10 CEST
-    Version: 1.2.K
+    Last Updated: 2025-08-19 20:23 CEST
+    Version: 1.2.L
     State: Experimental
-    Signed: Vanguard
+    Signed: Meridian
 
     Synopsis:
-    Enhanced dependency injection container with complete service ecosystem per Focus 18.2.0 final modularization.
-    Added IUIStateService and IPanelVisibilityService registration per Focus 16.2.0 Phase 1.
-    Added ISettingsBindingService registration per Focus 17.2.0 Phase 2.
-    Added IRadioButtonStateService and IPathManagementService registration per Focus 18.2.0 Phases 3 & 4.
-    Complete 9-service architecture achieving streamlined MainViewModel orchestration.
+    Enhanced dependency injection container with professional diagnostic framework per Focus 19.4.0.
+    Added IDiagnosticService registration with conditional compilation for zero-trace production builds.
+    Complete 10-service architecture including comprehensive diagnostic instrumentation capabilities.
 */
 
 using System;
@@ -18,6 +16,7 @@ using System.Linq;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Audiobook_Compressor.Services;
+using Audiobook_Compressor.Services.Diagnostics;
 using Audiobook_Compressor.ViewModels;
 
 namespace Audiobook_Compressor
@@ -66,7 +65,7 @@ namespace Audiobook_Compressor
         {
             var services = new ServiceCollection();
 
-            // Register services
+            // Register core services
             services.AddSingleton<ISettingsService, SettingsService>();
             services.AddTransient<IAudioService, AudioService>();
             services.AddSingleton<IDialogService, DialogService>();
@@ -82,6 +81,13 @@ namespace Audiobook_Compressor
             // Register Phase 3 & 4 Final Modularization Services
             services.AddSingleton<IRadioButtonStateService, RadioButtonStateService>();
             services.AddSingleton<IPathManagementService, PathManagementService>();
+
+            // Register Professional Diagnostic Framework per Focus 19.4.0
+#if DEBUG
+            services.AddSingleton<IDiagnosticService, DiagnosticService>();
+#else
+            services.AddSingleton<IDiagnosticService, NullDiagnosticService>();
+#endif
 
             // Register ViewModels - Singleton for application exit access
             services.AddSingleton<MainViewModel>();
